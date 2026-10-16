@@ -4,3 +4,5 @@ __pycache__/
 .pytest_cache/
 video/out/
 *.mp4
+data/inbox/*.csv
+.DS_Store

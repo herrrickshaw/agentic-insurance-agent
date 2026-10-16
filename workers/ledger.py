@@ -19,6 +19,11 @@ def connect(path=None):
     con = sqlite3.connect(path or DB_PATH)
     con.row_factory = sqlite3.Row
     con.executescript(SCHEMA)
+    try:
+        from insurance.db import ensure_schema
+        ensure_schema(con)
+    except ImportError:
+        pass
     return con
 
 

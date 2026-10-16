@@ -38,3 +38,10 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 AI_PROVIDER=mock .venv/bin/python -m ai.evals.run_evals   # regression gate (exit 1 on regression)
 ```
 Real models: set `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_DEPLOY_SMALL`, `AZURE_DEPLOY_LARGE` and/or `ANTHROPIC_API_KEY` (adapters are written but untested against live APIs). Prices for cost tracking: `AI_PRICES="model=in:out,..."` (USD per 1M tokens).
+
+## Customer data, portfolio risk and actuarial maths (`insurance/`)
+Customer ingestion and entity resolution, 360 profiles, portfolio exposure/VaR/concentration, reserving, and life/GLM actuarial maths, wired into two new BPMN processes (`customer_onboarding`, `portfolio_risk_review`) and the policy flow. See `docs/ACTUARIAL_AND_PORTFOLIO.md` (including limits: illustrative mortality table, synthetic data).
+```bash
+.venv/bin/python -m pytest -q insurance ai/tests
+.venv/bin/python scripts/demo_customers_portfolio.py   # needs the compose stack running
+```

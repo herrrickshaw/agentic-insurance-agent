@@ -35,13 +35,14 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes: [ledger:/data]
   workers:
-    build: ./workers
+    build: {context: ., dockerfile: workers/Dockerfile}
     depends_on: [engine]
     environment:
       ENGINE_URL: http://engine:8080/engine-rest
       AI_SERVICE_URL: http://ai:8090
+      DEMO_SEED: "1"
       DUE_IN: ${DUE_IN:-P30D}
       GRACE_IN: ${GRACE_IN:-P15D}
       PAYOUT_SLA: ${PAYOUT_SLA:-P5D}
-    volumes: [ledger:/data]
+    volumes: [ledger:/data, ./data/inbox:/data/inbox:ro]
 volumes: {pgdata: {}, vecdata: {}, ledger: {}}

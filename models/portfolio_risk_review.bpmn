@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Defs_portfolio_risk_review" targetNamespace="http://insurance-workflow/bpmn">
+<bpmn:process id="portfolio_risk_review" name="Portfolio risk review for underwriting" isExecutable="true" camunda:historyTimeToLive="P365D">
+<bpmn:startEvent id="start" name="Review cycle starts" />
+<bpmn:serviceTask id="metrics" name="Exposure, VaR/TVaR, concentration" camunda:type="external" camunda:topic="portfolio-metrics"></bpmn:serviceTask>
+<bpmn:serviceTask id="reserve" name="Reserving (chain-ladder / BF)" camunda:type="external" camunda:topic="run-reserving"></bpmn:serviceTask>
+<bpmn:businessRuleTask id="limits" name="Risk-appetite limits (DMN)" camunda:decisionRef="portfolio-limits" camunda:resultVariable="limits" camunda:mapDecisionResult="singleResult" />
+<bpmn:exclusiveGateway id="g" name="Breach?" default="Flow_6" />
+<bpmn:serviceTask id="cro" name="Escalate to CRO" camunda:type="external" camunda:topic="notify-owner"><bpmn:extensionElements><camunda:inputOutput><camunda:inputParameter name="notifyMessage">${metricsSummary}</camunda:inputParameter></camunda:inputOutput></bpmn:extensionElements></bpmn:serviceTask>
+<bpmn:userTask id="committee" name="Underwriting committee review" camunda:candidateGroups="uw-committee"><bpmn:extensionElements><camunda:formData><camunda:formField id="metricsSummary" label="Portfolio metrics" type="string" defaultValue="${metricsSummary}" /><camunda:formField id="committeeDecision" label="Decision / guideline change" type="string" /></camunda:formData></bpmn:extensionElements></bpmn:userTask>
+<bpmn:serviceTask id="guide" name="Update underwriting guidelines" camunda:type="external" camunda:topic="update-guidelines"></bpmn:serviceTask>
+<bpmn:endEvent id="end_ok" name="Within appetite" />
+<bpmn:endEvent id="end_done" name="Guidelines updated" />
+<bpmn:sequenceFlow id="Flow_0" sourceRef="start" targetRef="metrics"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_1" sourceRef="metrics" targetRef="reserve"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_2" sourceRef="reserve" targetRef="limits"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_3" sourceRef="limits" targetRef="g"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_4" name="escalate" sourceRef="g" targetRef="cro"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${limits.decision == 'escalate'}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_5" name="review" sourceRef="g" targetRef="committee"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${limits.decision == 'review'}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_6" name="ok" sourceRef="g" targetRef="end_ok"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_7" sourceRef="cro" targetRef="committee"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_8" sourceRef="committee" targetRef="guide"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_9" sourceRef="guide" targetRef="end_done"></bpmn:sequenceFlow>
+</bpmn:process>
+<bpmndi:BPMNDiagram id="Diagram_portfolio_risk_review"><bpmndi:BPMNPlane id="Plane_portfolio_risk_review" bpmnElement="portfolio_risk_review">
+<bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="97" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="metrics_di" bpmnElement="metrics"><dc:Bounds x="210" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="reserve_di" bpmnElement="reserve"><dc:Bounds x="360" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="limits_di" bpmnElement="limits"><dc:Bounds x="510" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="g_di" bpmnElement="g" isMarkerVisible="true"><dc:Bounds x="690" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="cro_di" bpmnElement="cro"><dc:Bounds x="810" y="60" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="committee_di" bpmnElement="committee"><dc:Bounds x="960" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="guide_di" bpmnElement="guide"><dc:Bounds x="1110" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_ok_di" bpmnElement="end_ok"><dc:Bounds x="847" y="322" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_done_di" bpmnElement="end_done"><dc:Bounds x="1297" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNEdge id="Flow_0_di" bpmnElement="Flow_0"><di:waypoint x="133" y="220" /><di:waypoint x="210" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="320" y="220" /><di:waypoint x="360" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="470" y="220" /><di:waypoint x="510" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="620" y="220" /><di:waypoint x="690" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4"><di:waypoint x="740" y="220" /><di:waypoint x="775" y="220" /><di:waypoint x="775" y="100" /><di:waypoint x="810" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5"><di:waypoint x="740" y="220" /><di:waypoint x="960" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6"><di:waypoint x="740" y="220" /><di:waypoint x="793" y="220" /><di:waypoint x="793" y="340" /><di:waypoint x="847" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7"><di:waypoint x="920" y="100" /><di:waypoint x="940" y="100" /><di:waypoint x="940" y="220" /><di:waypoint x="960" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8"><di:waypoint x="1070" y="220" /><di:waypoint x="1110" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_9_di" bpmnElement="Flow_9"><di:waypoint x="1220" y="220" /><di:waypoint x="1297" y="220" /></bpmndi:BPMNEdge>
+</bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+</bpmn:definitions>

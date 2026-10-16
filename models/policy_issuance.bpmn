@@ -3,11 +3,12 @@
 <bpmn:process id="policy_issuance" name="Policy issuance" isExecutable="true" camunda:historyTimeToLive="P365D">
 <bpmn:startEvent id="start" name="Application received" />
 <bpmn:serviceTask id="validate" name="Validate application" camunda:type="external" camunda:topic="validate-application"></bpmn:serviceTask>
-<bpmn:exclusiveGateway id="g_valid" name="Valid?" default="Flow_3" />
+<bpmn:exclusiveGateway id="g_valid" name="Valid?" default="Flow_4" />
+<bpmn:serviceTask id="rate" name="Actuarial risk rating" camunda:type="external" camunda:topic="rate-risk"></bpmn:serviceTask>
 <bpmn:businessRuleTask id="uw" name="Underwriting rules (DMN)" camunda:decisionRef="underwriting" camunda:resultVariable="uw" camunda:mapDecisionResult="singleResult" />
-<bpmn:exclusiveGateway id="g_uw" name="Decision" default="Flow_7" />
+<bpmn:exclusiveGateway id="g_uw" name="Decision" default="Flow_8" />
 <bpmn:userTask id="manual" name="Manual underwriting" camunda:candidateGroups="underwriters"><bpmn:extensionElements><camunda:formData><camunda:formField id="approved" label="Approve policy?" type="boolean" /><camunda:formField id="loadingPct" label="Extra loading %" type="long" /></camunda:formData></bpmn:extensionElements></bpmn:userTask>
-<bpmn:exclusiveGateway id="g_man" name="Approved?" default="Flow_10" />
+<bpmn:exclusiveGateway id="g_man" name="Approved?" default="Flow_11" />
 <bpmn:serviceTask id="premium" name="Calculate premium" camunda:type="external" camunda:topic="calculate-premium"><bpmn:extensionElements><camunda:inputOutput><camunda:inputParameter name="loadingPct">${uw.loadingPct}</camunda:inputParameter></camunda:inputOutput></bpmn:extensionElements></bpmn:serviceTask>
 <bpmn:serviceTask id="issue" name="Issue policy" camunda:type="external" camunda:topic="issue-policy"></bpmn:serviceTask>
 <bpmn:serviceTask id="docs" name="Send policy documents" camunda:type="external" camunda:topic="send-documents"></bpmn:serviceTask>
@@ -17,51 +18,54 @@
 <bpmn:endEvent id="end_no" name="Application rejected" />
 <bpmn:sequenceFlow id="Flow_0" sourceRef="start" targetRef="validate"></bpmn:sequenceFlow>
 <bpmn:sequenceFlow id="Flow_1" sourceRef="validate" targetRef="g_valid"></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_2" name="yes" sourceRef="g_valid" targetRef="uw"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${valid}</bpmn:conditionExpression></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_3" name="no" sourceRef="g_valid" targetRef="reject"></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_4" sourceRef="uw" targetRef="g_uw"></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_5" name="decline" sourceRef="g_uw" targetRef="reject"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${uw.decision == 'decline'}</bpmn:conditionExpression></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_6" name="refer" sourceRef="g_uw" targetRef="manual"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${uw.decision == 'refer'}</bpmn:conditionExpression></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_7" name="auto-approve" sourceRef="g_uw" targetRef="premium"></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_8" sourceRef="manual" targetRef="g_man"></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_9" name="approved" sourceRef="g_man" targetRef="premium"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved}</bpmn:conditionExpression></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_10" name="declined" sourceRef="g_man" targetRef="reject"></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_11" sourceRef="premium" targetRef="issue"></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_12" sourceRef="issue" targetRef="docs"></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_13" sourceRef="docs" targetRef="collect"></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_14" sourceRef="collect" targetRef="end_ok"></bpmn:sequenceFlow>
-<bpmn:sequenceFlow id="Flow_15" sourceRef="reject" targetRef="end_no"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_2" name="yes" sourceRef="g_valid" targetRef="rate"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${valid}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_3" sourceRef="rate" targetRef="uw"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_4" name="no" sourceRef="g_valid" targetRef="reject"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_5" sourceRef="uw" targetRef="g_uw"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_6" name="decline" sourceRef="g_uw" targetRef="reject"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${uw.decision == 'decline'}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_7" name="refer" sourceRef="g_uw" targetRef="manual"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${uw.decision == 'refer'}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_8" name="auto-approve" sourceRef="g_uw" targetRef="premium"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_9" sourceRef="manual" targetRef="g_man"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_10" name="approved" sourceRef="g_man" targetRef="premium"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_11" name="declined" sourceRef="g_man" targetRef="reject"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_12" sourceRef="premium" targetRef="issue"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_13" sourceRef="issue" targetRef="docs"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_14" sourceRef="docs" targetRef="collect"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_15" sourceRef="collect" targetRef="end_ok"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_16" sourceRef="reject" targetRef="end_no"></bpmn:sequenceFlow>
 </bpmn:process>
 <bpmndi:BPMNDiagram id="Diagram_policy_issuance"><bpmndi:BPMNPlane id="Plane_policy_issuance" bpmnElement="policy_issuance">
 <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="97" y="202" width="36" height="36" /></bpmndi:BPMNShape>
 <bpmndi:BPMNShape id="validate_di" bpmnElement="validate"><dc:Bounds x="210" y="180" width="110" height="80" /></bpmndi:BPMNShape>
 <bpmndi:BPMNShape id="g_valid_di" bpmnElement="g_valid" isMarkerVisible="true"><dc:Bounds x="390" y="195" width="50" height="50" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="uw_di" bpmnElement="uw"><dc:Bounds x="510" y="180" width="110" height="80" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="g_uw_di" bpmnElement="g_uw" isMarkerVisible="true"><dc:Bounds x="690" y="195" width="50" height="50" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="manual_di" bpmnElement="manual"><dc:Bounds x="810" y="60" width="110" height="80" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="g_man_di" bpmnElement="g_man" isMarkerVisible="true"><dc:Bounds x="990" y="75" width="50" height="50" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="premium_di" bpmnElement="premium"><dc:Bounds x="1110" y="180" width="110" height="80" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="issue_di" bpmnElement="issue"><dc:Bounds x="1260" y="180" width="110" height="80" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="docs_di" bpmnElement="docs"><dc:Bounds x="1410" y="180" width="110" height="80" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="collect_di" bpmnElement="collect"><dc:Bounds x="1560" y="180" width="110" height="80" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="end_ok_di" bpmnElement="end_ok"><dc:Bounds x="1747" y="202" width="36" height="36" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="reject_di" bpmnElement="reject"><dc:Bounds x="810" y="300" width="110" height="80" /></bpmndi:BPMNShape>
-<bpmndi:BPMNShape id="end_no_di" bpmnElement="end_no"><dc:Bounds x="997" y="322" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="rate_di" bpmnElement="rate"><dc:Bounds x="510" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="uw_di" bpmnElement="uw"><dc:Bounds x="660" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="g_uw_di" bpmnElement="g_uw" isMarkerVisible="true"><dc:Bounds x="840" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="manual_di" bpmnElement="manual"><dc:Bounds x="960" y="60" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="g_man_di" bpmnElement="g_man" isMarkerVisible="true"><dc:Bounds x="1140" y="75" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="premium_di" bpmnElement="premium"><dc:Bounds x="1260" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="issue_di" bpmnElement="issue"><dc:Bounds x="1410" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="docs_di" bpmnElement="docs"><dc:Bounds x="1560" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="collect_di" bpmnElement="collect"><dc:Bounds x="1710" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_ok_di" bpmnElement="end_ok"><dc:Bounds x="1897" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="reject_di" bpmnElement="reject"><dc:Bounds x="960" y="300" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_no_di" bpmnElement="end_no"><dc:Bounds x="1147" y="322" width="36" height="36" /></bpmndi:BPMNShape>
 <bpmndi:BPMNEdge id="Flow_0_di" bpmnElement="Flow_0"><di:waypoint x="133" y="220" /><di:waypoint x="210" y="220" /></bpmndi:BPMNEdge>
 <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="320" y="220" /><di:waypoint x="390" y="220" /></bpmndi:BPMNEdge>
 <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="440" y="220" /><di:waypoint x="510" y="220" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="440" y="220" /><di:waypoint x="625" y="220" /><di:waypoint x="625" y="340" /><di:waypoint x="810" y="340" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4"><di:waypoint x="620" y="220" /><di:waypoint x="690" y="220" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5"><di:waypoint x="740" y="220" /><di:waypoint x="775" y="220" /><di:waypoint x="775" y="340" /><di:waypoint x="810" y="340" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6"><di:waypoint x="740" y="220" /><di:waypoint x="775" y="220" /><di:waypoint x="775" y="100" /><di:waypoint x="810" y="100" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7"><di:waypoint x="740" y="220" /><di:waypoint x="1110" y="220" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8"><di:waypoint x="920" y="100" /><di:waypoint x="990" y="100" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_9_di" bpmnElement="Flow_9"><di:waypoint x="1040" y="100" /><di:waypoint x="1075" y="100" /><di:waypoint x="1075" y="220" /><di:waypoint x="1110" y="220" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10"><di:waypoint x="1040" y="100" /><di:waypoint x="925" y="100" /><di:waypoint x="925" y="340" /><di:waypoint x="810" y="340" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11"><di:waypoint x="1220" y="220" /><di:waypoint x="1260" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="620" y="220" /><di:waypoint x="660" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4"><di:waypoint x="440" y="220" /><di:waypoint x="700" y="220" /><di:waypoint x="700" y="340" /><di:waypoint x="960" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5"><di:waypoint x="770" y="220" /><di:waypoint x="840" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6"><di:waypoint x="890" y="220" /><di:waypoint x="925" y="220" /><di:waypoint x="925" y="340" /><di:waypoint x="960" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7"><di:waypoint x="890" y="220" /><di:waypoint x="925" y="220" /><di:waypoint x="925" y="100" /><di:waypoint x="960" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8"><di:waypoint x="890" y="220" /><di:waypoint x="1260" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_9_di" bpmnElement="Flow_9"><di:waypoint x="1070" y="100" /><di:waypoint x="1140" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10"><di:waypoint x="1190" y="100" /><di:waypoint x="1225" y="100" /><di:waypoint x="1225" y="220" /><di:waypoint x="1260" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11"><di:waypoint x="1190" y="100" /><di:waypoint x="1075" y="100" /><di:waypoint x="1075" y="340" /><di:waypoint x="960" y="340" /></bpmndi:BPMNEdge>
 <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12"><di:waypoint x="1370" y="220" /><di:waypoint x="1410" y="220" /></bpmndi:BPMNEdge>
 <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13"><di:waypoint x="1520" y="220" /><di:waypoint x="1560" y="220" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14"><di:waypoint x="1670" y="220" /><di:waypoint x="1747" y="220" /></bpmndi:BPMNEdge>
-<bpmndi:BPMNEdge id="Flow_15_di" bpmnElement="Flow_15"><di:waypoint x="920" y="340" /><di:waypoint x="997" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14"><di:waypoint x="1670" y="220" /><di:waypoint x="1710" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_15_di" bpmnElement="Flow_15"><di:waypoint x="1820" y="220" /><di:waypoint x="1897" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16"><di:waypoint x="1070" y="340" /><di:waypoint x="1147" y="340" /></bpmndi:BPMNEdge>
 </bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
 </bpmn:definitions>

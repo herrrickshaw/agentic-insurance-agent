@@ -1,6 +1,7 @@
 import sys, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "workers"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import handlers as h
 from ledger import connect
 
@@ -11,13 +12,17 @@ class Flow(unittest.TestCase):
 
     def test_policy_to_paid_to_claim_to_payout(self):
         v = dict(applicant="A", product="term_life", age=34, sumInsured=5_000_000)
+        v["age"] = 34
         self.assertTrue(h.validate_application(self.con, v)["valid"])
         v.update(h.calculate_premium(self.con, {**v, "loadingPct": 10}))
-        self.assertEqual(v["premium"], 6600.0)
+        self.assertGreater(v["premium"], 0)                                   # actuarial gross premium
+        smoker = h.calculate_premium(self.con, {**v, "mortalityMultiple": 1.8, "age": 34, "loadingPct": 0})["premium"]
+        base = h.calculate_premium(self.con, {**v, "mortalityMultiple": 1.0, "age": 34, "loadingPct": 0})["premium"]
+        self.assertGreater(smoker, base * 1.5)
         v.update(h.issue_policy(self.con, v))
         h.create_invoice(self.con, v)
         self.assertEqual(h.verify_coverage(self.con, dict(policyNumber=v["policyNumber"], claimAmount=100))["covered"], False)  # not yet paid
-        h.reconcile_payment(self.con, {**v, "amountPaid": 6600.0, "paymentRef": "X"})
+        h.reconcile_payment(self.con, {**v, "amountPaid": v["premium"], "paymentRef": "X"})
         c = h.verify_coverage(self.con, dict(policyNumber=v["policyNumber"], claimAmount=8000))
         self.assertTrue(c["covered"])
         cv = dict(policyNumber=v["policyNumber"], claimAmount=8000, **c)

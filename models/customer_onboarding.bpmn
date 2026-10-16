@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Defs_customer_onboarding" targetNamespace="http://insurance-workflow/bpmn">
+<bpmn:process id="customer_onboarding" name="Customer data ingestion &amp; profile creation" isExecutable="true" camunda:historyTimeToLive="P365D">
+<bpmn:startEvent id="start" name="Data file received" />
+<bpmn:serviceTask id="ingest" name="Ingest, validate &amp; hash PII" camunda:type="external" camunda:topic="ingest-customers"></bpmn:serviceTask>
+<bpmn:exclusiveGateway id="g_q" name="Reject rate OK?" default="Flow_3" />
+<bpmn:serviceTask id="notify" name="Notify data owner" camunda:type="external" camunda:topic="notify-owner"><bpmn:extensionElements><camunda:inputOutput><camunda:inputParameter name="rejectRate">${rejectRate}</camunda:inputParameter></camunda:inputOutput></bpmn:extensionElements></bpmn:serviceTask>
+<bpmn:endEvent id="end_bad" name="Batch rejected" />
+<bpmn:serviceTask id="resolve" name="Entity resolution (dedupe)" camunda:type="external" camunda:topic="resolve-entities"></bpmn:serviceTask>
+<bpmn:exclusiveGateway id="g_rev" name="Pairs to review?" default="Flow_7" />
+<bpmn:userTask id="steward" name="Data steward review" camunda:candidateGroups="data-stewards"><bpmn:extensionElements><camunda:formData><camunda:formField id="reviewSample" label="Candidate duplicates" type="string" defaultValue="${reviewSample}" /><camunda:formField id="mergeAll" label="Merge all pending pairs?" type="boolean" /></camunda:formData></bpmn:extensionElements></bpmn:userTask>
+<bpmn:serviceTask id="apply" name="Apply steward decisions" camunda:type="external" camunda:topic="apply-steward-decisions"></bpmn:serviceTask>
+<bpmn:serviceTask id="profiles" name="Build customer 360 profiles &amp; segments" camunda:type="external" camunda:topic="build-profiles"></bpmn:serviceTask>
+<bpmn:endEvent id="end_ok" name="Profiles ready" />
+<bpmn:sequenceFlow id="Flow_0" sourceRef="start" targetRef="ingest"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_1" sourceRef="ingest" targetRef="g_q"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_2" name="ok" sourceRef="g_q" targetRef="resolve"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${rejectRate &lt;= 0.2}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_3" name="too many rejects" sourceRef="g_q" targetRef="notify"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_4" sourceRef="notify" targetRef="end_bad"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_5" sourceRef="resolve" targetRef="g_rev"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_6" name="yes" sourceRef="g_rev" targetRef="steward"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reviewPending &gt; 0}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_7" name="no" sourceRef="g_rev" targetRef="profiles"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_8" sourceRef="steward" targetRef="apply"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_9" sourceRef="apply" targetRef="profiles"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_10" sourceRef="profiles" targetRef="end_ok"></bpmn:sequenceFlow>
+</bpmn:process>
+<bpmndi:BPMNDiagram id="Diagram_customer_onboarding"><bpmndi:BPMNPlane id="Plane_customer_onboarding" bpmnElement="customer_onboarding">
+<bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="97" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="ingest_di" bpmnElement="ingest"><dc:Bounds x="210" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="g_q_di" bpmnElement="g_q" isMarkerVisible="true"><dc:Bounds x="390" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="notify_di" bpmnElement="notify"><dc:Bounds x="510" y="300" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_bad_di" bpmnElement="end_bad"><dc:Bounds x="697" y="322" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="resolve_di" bpmnElement="resolve"><dc:Bounds x="510" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="g_rev_di" bpmnElement="g_rev" isMarkerVisible="true"><dc:Bounds x="690" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="steward_di" bpmnElement="steward"><dc:Bounds x="810" y="60" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="apply_di" bpmnElement="apply"><dc:Bounds x="960" y="60" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="profiles_di" bpmnElement="profiles"><dc:Bounds x="1110" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_ok_di" bpmnElement="end_ok"><dc:Bounds x="1297" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNEdge id="Flow_0_di" bpmnElement="Flow_0"><di:waypoint x="133" y="220" /><di:waypoint x="210" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="320" y="220" /><di:waypoint x="390" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="440" y="220" /><di:waypoint x="510" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="440" y="220" /><di:waypoint x="475" y="220" /><di:waypoint x="475" y="340" /><di:waypoint x="510" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4"><di:waypoint x="620" y="340" /><di:waypoint x="697" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5"><di:waypoint x="620" y="220" /><di:waypoint x="690" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6"><di:waypoint x="740" y="220" /><di:waypoint x="775" y="220" /><di:waypoint x="775" y="100" /><di:waypoint x="810" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7"><di:waypoint x="740" y="220" /><di:waypoint x="1110" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8"><di:waypoint x="920" y="100" /><di:waypoint x="960" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_9_di" bpmnElement="Flow_9"><di:waypoint x="1070" y="100" /><di:waypoint x="1090" y="100" /><di:waypoint x="1090" y="220" /><di:waypoint x="1110" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10"><di:waypoint x="1220" y="220" /><di:waypoint x="1297" y="220" /></bpmndi:BPMNEdge>
+</bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+</bpmn:definitions>

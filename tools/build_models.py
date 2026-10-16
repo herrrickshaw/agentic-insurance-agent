@@ -123,23 +123,25 @@ def policy_issuance():
     p.node("start", "start", "Application received", 0, 1)
     p.node("validate", "ext", "Validate application", 1, 1, topic="validate-application")
     p.node("g_valid", "xor", "Valid?", 2, 1)
-    p.node("uw", "dmn", "Underwriting rules (DMN)", 3, 1, decision="underwriting", result="uw")
-    p.node("g_uw", "xor", "Decision", 4, 1)
-    p.node("manual", "user", "Manual underwriting", 5, 0, group="underwriters",
+    p.node("rate", "ext", "Actuarial risk rating", 3, 1, topic="rate-risk")
+    p.node("uw", "dmn", "Underwriting rules (DMN)", 4, 1, decision="underwriting", result="uw")
+    p.node("g_uw", "xor", "Decision", 5, 1)
+    p.node("manual", "user", "Manual underwriting", 6, 0, group="underwriters",
            fields=[("approved", "Approve policy?", "boolean"), ("loadingPct", "Extra loading %", "long")])
-    p.node("g_man", "xor", "Approved?", 6, 0)
-    p.node("premium", "ext", "Calculate premium", 7, 1, topic="calculate-premium",
+    p.node("g_man", "xor", "Approved?", 7, 0)
+    p.node("premium", "ext", "Calculate premium", 8, 1, topic="calculate-premium",
            inputs={"loadingPct": "${uw.loadingPct}"})
-    p.node("issue", "ext", "Issue policy", 8, 1, topic="issue-policy")
-    p.node("docs", "ext", "Send policy documents", 9, 1, topic="send-documents")
-    p.node("collect", "call", "Collect premium", 10, 1, called="premium_collection")
-    p.node("end_ok", "end", "Policy in force", 11, 1)
-    p.node("reject", "ext", "Notify applicant of rejection", 5, 2, topic="notify-applicant",
+    p.node("issue", "ext", "Issue policy", 9, 1, topic="issue-policy")
+    p.node("docs", "ext", "Send policy documents", 10, 1, topic="send-documents")
+    p.node("collect", "call", "Collect premium", 11, 1, called="premium_collection")
+    p.node("end_ok", "end", "Policy in force", 12, 1)
+    p.node("reject", "ext", "Notify applicant of rejection", 6, 2, topic="notify-applicant",
            inputs={"uwDecision": "${execution.hasVariable('uw') ? uw.decision : 'invalid'}"})
-    p.node("end_no", "end", "Application rejected", 6, 2)
+    p.node("end_no", "end", "Application rejected", 7, 2)
     p.flow("start", "validate")
     p.flow("validate", "g_valid")
-    p.flow("g_valid", "uw", "${valid}", "yes")
+    p.flow("g_valid", "rate", "${valid}", "yes")
+    p.flow("rate", "uw")
     p.flow("g_valid", "reject", default=True, label="no")
     p.flow("uw", "g_uw")
     p.flow("g_uw", "reject", "${uw.decision == 'decline'}", "decline")
@@ -222,6 +224,55 @@ def claim_handling():
     return p
 
 
+def customer_onboarding():
+    p = Proc("customer_onboarding", "Customer data ingestion & profile creation")
+    p.node("start", "start", "Data file received", 0, 1)
+    p.node("ingest", "ext", "Ingest, validate & hash PII", 1, 1, topic="ingest-customers")
+    p.node("g_q", "xor", "Reject rate OK?", 2, 1)
+    p.node("notify", "ext", "Notify data owner", 3, 2, topic="notify-owner",
+           inputs={"rejectRate": "${rejectRate}"})
+    p.node("end_bad", "end", "Batch rejected", 4, 2)
+    p.node("resolve", "ext", "Entity resolution (dedupe)", 3, 1, topic="resolve-entities")
+    p.node("g_rev", "xor", "Pairs to review?", 4, 1)
+    p.node("steward", "user", "Data steward review", 5, 0, group="data-stewards",
+           fields=[("reviewSample", "Candidate duplicates", "string", "${reviewSample}"), ("mergeAll", "Merge all pending pairs?", "boolean")])
+    p.node("apply", "ext", "Apply steward decisions", 6, 0, topic="apply-steward-decisions")
+    p.node("profiles", "ext", "Build customer 360 profiles & segments", 7, 1, topic="build-profiles")
+    p.node("end_ok", "end", "Profiles ready", 8, 1)
+    p.flow("start", "ingest"); p.flow("ingest", "g_q")
+    p.flow("g_q", "resolve", "${rejectRate <= 0.2}", "ok")
+    p.flow("g_q", "notify", default=True, label="too many rejects")
+    p.flow("notify", "end_bad")
+    p.flow("resolve", "g_rev")
+    p.flow("g_rev", "steward", "${reviewPending > 0}", "yes")
+    p.flow("g_rev", "profiles", default=True, label="no")
+    p.flow("steward", "apply"); p.flow("apply", "profiles"); p.flow("profiles", "end_ok")
+    return p
+
+
+def portfolio_risk_review():
+    p = Proc("portfolio_risk_review", "Portfolio risk review for underwriting")
+    p.node("start", "start", "Review cycle starts", 0, 1)
+    p.node("metrics", "ext", "Exposure, VaR/TVaR, concentration", 1, 1, topic="portfolio-metrics")
+    p.node("reserve", "ext", "Reserving (chain-ladder / BF)", 2, 1, topic="run-reserving")
+    p.node("limits", "dmn", "Risk-appetite limits (DMN)", 3, 1, decision="portfolio-limits", result="limits")
+    p.node("g", "xor", "Breach?", 4, 1)
+    p.node("cro", "ext", "Escalate to CRO", 5, 0, topic="notify-owner",
+           inputs={"notifyMessage": "${metricsSummary}"})
+    p.node("committee", "user", "Underwriting committee review", 6, 1, group="uw-committee",
+           fields=[("metricsSummary", "Portfolio metrics", "string", "${metricsSummary}"),
+                   ("committeeDecision", "Decision / guideline change", "string")])
+    p.node("guide", "ext", "Update underwriting guidelines", 7, 1, topic="update-guidelines")
+    p.node("end_ok", "end", "Within appetite", 5, 2)
+    p.node("end_done", "end", "Guidelines updated", 8, 1)
+    p.flow("start", "metrics"); p.flow("metrics", "reserve"); p.flow("reserve", "limits"); p.flow("limits", "g")
+    p.flow("g", "cro", "${limits.decision == 'escalate'}", "escalate")
+    p.flow("g", "committee", "${limits.decision == 'review'}", "review")
+    p.flow("g", "end_ok", default=True, label="ok")
+    p.flow("cro", "committee"); p.flow("committee", "guide"); p.flow("guide", "end_done")
+    return p
+
+
 def dmn(did, name, inputs, outputs, rules):
     ins = "".join(
         f'<input id="in_{did}_{i}" label="{l}"><inputExpression id="ie_{did}_{i}" typeRef="{t}"><text>{e}</text></inputExpression></input>'
@@ -242,18 +293,28 @@ def dmn(did, name, inputs, outputs, rules):
 
 def main():
     OUT.mkdir(exist_ok=True)
-    for p in (policy_issuance(), premium_collection(), claim_handling()):
+    for p in (policy_issuance(), premium_collection(), claim_handling(), customer_onboarding(), portfolio_risk_review()):
         (OUT / f"{p.pid}.bpmn").write_text(p.xml())
     (OUT / "underwriting.dmn").write_text(dmn(
         "underwriting", "Underwriting",
-        [("Age", "age", "integer"), ("Sum insured", "sumInsured", "long"), ("Smoker", "smoker", "boolean")],
+        [("Age", "age", "integer"), ("Sum insured", "sumInsured", "long"), ("Smoker", "smoker", "boolean"),
+         ("Rating class", "ratingClass", "string")],
         [("decision", "string"), ("loadingPct", "integer")],
-        [(["<18,>70", "", ""], ['"decline"', "0"]),
-         (["", ">10000000", ""], ['"refer"', "0"]),
-         ([">50", "", "true"], ['"refer"', "25"]),
-         (["", "", "true"], ['"auto_approve"', "25"]),
-         ([">50", "", "false"], ['"auto_approve"', "10"]),
-         (["", "", ""], ['"auto_approve"', "0"])]))
+        [(["", "", "", '"decline"'], ['"decline"', "0"]),
+         (["<18,>70", "", "", ""], ['"decline"', "0"]),
+         (["", "", "", '"refer"'], ['"refer"', "0"]),
+         (["", ">10000000", "", ""], ['"refer"', "0"]),
+         ([">50", "", "true", ""], ['"refer"', "0"]),         # mortality loading is priced via ratingClass multiple,
+         (["", "", "true", ""], ['"auto_approve"', "0"]),    # not here (avoids double-counting smoker/age)
+         ([">50", "", "false", ""], ['"auto_approve"', "0"]),
+         (["", "", "", ""], ['"auto_approve"', "0"])]))
+    (OUT / "portfolio-limits.dmn").write_text(dmn(
+        "portfolio-limits", "Portfolio limits",
+        [("VaR % own funds", "var995PctOwnFunds", "double"), ("Max state share %", "maxStateSharePct", "double"),
+         ("Expected loss ratio", "expectedLossRatio", "double")],
+        [("decision", "string")],
+        [([">25", "", ""], ['"escalate"']), ([">15", "", ""], ['"review"']), (["", ">30", ""], ['"review"']),
+         (["", "", ">0.8"], ['"review"']), (["", "", ""], ['"ok"'])]))
     (OUT / "claims-triage.dmn").write_text(dmn(
         "claims-triage", "Claims triage",
         [("Claim amount", "claimAmount", "long"), ("Fraud score", "fraudScore", "integer")],

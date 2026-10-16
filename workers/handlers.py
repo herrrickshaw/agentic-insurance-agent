@@ -28,7 +28,12 @@ def validate_application(con, v):
     return {"valid": not errs, "validationErrors": "; ".join(errs)}
 
 
-def calculate_premium(con, v):
+def _ins(con):
+    from insurance.db import ensure_schema
+    ensure_schema(con)
+
+
+def calculate_premium_legacy(con, v):
     loading = int(v.get("loadingPct") or 0) + int(v.get("manualLoadingPct") or 0)
     premium = v["sumInsured"] * BASE_RATE[v["product"]] * (1 + loading / 100)
     return {"premium": round(premium, 2)}
@@ -180,7 +185,98 @@ def ai_triage(con, v):
     return {"aiRoute": r["route"], "aiRationale": r["rationale"][:500], "aiTraceId": r["trace_id"]}
 
 
+def calculate_premium(con, v):
+    """Term life: actuarial gross premium (equivalence principle) at the underwriting mortality multiple.
+    Other products keep the flat-rate table."""
+    if v["product"] != "term_life":
+        return calculate_premium_legacy(con, v)
+    from insurance.actuarial import mortality as mo
+    mult = float(v.get("mortalityMultiple") or 1.0) * (1 + int(v.get("loadingPct") or 0) / 100)
+    cm = mo.Commutation(mo.MortalityTable.gompertz_makeham(multiple=mult), float(os.environ.get("VALUATION_RATE", "0.06")))
+    term = int(v.get("termYears") or 20)
+    g = mo.term_gross_premium(cm, int(v["age"]), term, v["sumInsured"], initial_expense=2000, renewal_expense=300, commission=0.10)
+    return {"premium": round(g, 2), "premiumBasis": f"term {term}y, mortality x{mult:.2f}, i={cm.i:.2%}, illustrative table"}
+
+
+def rate_risk(con, v):
+    from insurance.underwriting.risk import life_rating
+    if v["product"] != "term_life":
+        return {"ratingClass": "standard", "mortalityMultiple": 1.0, "ratingFlags": ""}
+    r = life_rating(int(v["age"]), bool(v.get("smoker")), v.get("occupation", ""), float(v.get("annualIncome") or 0), v["sumInsured"])
+    return {"ratingClass": r["rating_class"], "mortalityMultiple": r["mortality_multiple"], "ratingFlags": "; ".join(r["flags"])}
+
+
+def ingest_customers(con, v):
+    from insurance.customers.ingest import ingest_file
+    _ins(con)
+    r = ingest_file(con, v["sourceFile"], v.get("sourceChannel", "unknown"))
+    log(con, r["batch_id"], f"ingested {r['rows_in']} rows: {r['accepted']} ok, {r['rejected']} rejected")
+    return {"batchId": r["batch_id"], "rowsIn": r["rows_in"], "accepted": r["accepted"], "rejected": r["rejected"], "rejectRate": r["reject_rate"]}
+
+
+def resolve_entities(con, v):
+    from insurance.customers.resolve import resolve_batch
+    r = resolve_batch(con, v["batchId"])
+    pend = con.execute("SELECT q.id,a.full_name,b.full_name,q.score FROM match_queue q JOIN customers_raw a ON a.raw_id=q.raw_a "
+                       "JOIN customers_raw b ON b.raw_id=q.raw_b WHERE q.batch_id=? AND q.status='pending' ORDER BY q.score DESC", (v["batchId"],)).fetchall()
+    sample = "; ".join(f"{p[1]} ~ {p[2]} ({p[3]:.2f})" for p in pend[:5])
+    log(con, v["batchId"], f"entity resolution: {r['auto_merged']} auto-merged, {len(pend)} pending steward review")
+    return {"autoMerged": r["auto_merged"], "reviewPending": len(pend), "reviewSample": sample[:900], "goldenCustomers": r["golden_customers"]}
+
+
+def apply_steward_decisions(con, v):
+    from insurance.customers.resolve import apply_steward_decision
+    ids = [r[0] for r in con.execute("SELECT id FROM match_queue WHERE batch_id=? AND status='pending'", (v["batchId"],))]
+    for i in ids:
+        apply_steward_decision(con, i, bool(v.get("mergeAll")))
+    log(con, v["batchId"], f"steward decided {len(ids)} pairs: {'merged' if v.get('mergeAll') else 'kept separate'}")
+    return {"reviewPending": 0}
+
+
+def build_profiles_h(con, v):
+    from insurance.customers.profile import build_profiles
+    if os.environ.get("DEMO_SEED") == "1" and con.execute("SELECT COUNT(*) FROM policy_book").fetchone()[0] == 0:
+        from insurance.portfolio.synth import make_policy_book
+        make_policy_book(con)                          # DEMO ONLY: stands in for the policy admin system feed
+    r = build_profiles(con)
+    log(con, v["batchId"], f"profiles built: {r['profiles']} (completeness {r['avg_completeness']})")
+    return {"profilesBuilt": r["profiles"], "avgCompleteness": r["avg_completeness"]}
+
+
+def portfolio_metrics(con, v):
+    from insurance.portfolio.risk import snapshot
+    m = snapshot(con, own_funds=float(v["ownFunds"]), label=v.get("portfolioLabel", "run"))
+    log(con, "portfolio", f"VaR99.5 {m['var995']:.0f} = {m['var995_pct_own_funds']}% of own funds; LR {m['expected_loss_ratio']}")
+    return {"var995": m["var995"], "tvar99": m["tvar99"], "var995PctOwnFunds": m["var995_pct_own_funds"],
+            "maxStateSharePct": m["max_state_share_pct"], "maxState": m["max_state"], "expectedLossRatio": m["expected_loss_ratio"],
+            "top10Pct": m["top10_customer_share_pct"], "totalSumInsured": m["total_sum_insured"], "portfolioPremium": m["premium"],
+            "metricsSummary": f"VaR99.5={m['var995']:.3e} ({m['var995_pct_own_funds']}% of own funds); largest state {m['max_state']} {m['max_state_share_pct']}%; expected loss ratio {m['expected_loss_ratio']}"}
+
+
+def run_reserving(con, v):
+    from insurance.portfolio import risk as pr
+    rows = [r for r in pr.policy_frame(con) if r["product"] != "term_life"]
+    nl = float(pr.expected_loss(rows).sum()) if rows else 0.0
+    r = pr.reserving_run(con, nl)
+    return {"chainLadderReserve": r["chain_ladder_reserve"], "bfReserve": r["bf_reserve"]}
+
+
+def update_guidelines(con, v):
+    log(con, "portfolio", f"committee decision recorded: {v.get('committeeDecision', 'n/a')}")
+    return {"guidelineVersion": f"UW-GL-{int(__import__('time').time())}"}
+
+
+def notify(con, v):
+    msg = v.get("notifyMessage") or (f"batch rejected: reject rate {v['rejectRate']}" if "rejectRate" in v else "attention required")
+    log(con, v.get("batchId", "ops"), f"notified owner: {msg}")
+    return {}
+
+
 HANDLERS = {
+    "rate-risk": rate_risk, "ingest-customers": ingest_customers, "resolve-entities": resolve_entities,
+    "apply-steward-decisions": apply_steward_decisions, "build-profiles": build_profiles_h,
+    "portfolio-metrics": portfolio_metrics, "run-reserving": run_reserving,
+    "update-guidelines": update_guidelines, "notify-owner": notify,
     "ai-process-documents": ai_process_documents, "ai-triage": ai_triage,
     "validate-application": validate_application, "calculate-premium": calculate_premium,
     "issue-policy": issue_policy, "send-documents": send_documents, "notify-applicant": notify_applicant,

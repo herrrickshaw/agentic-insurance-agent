@@ -14,7 +14,7 @@ jobs:
         with: {python-version: "3.12"}
       - run: pip install -r requirements-dev.txt
       - run: python tools/build_models.py && git diff --exit-code models   # models must match generator
-      - run: python -m pytest -q ai/tests
+      - run: python -m pytest -q ai/tests insurance
       - run: python tests/test_handlers.py
       - name: AI regression evals (gate)
         run: python -m ai.evals.run_evals

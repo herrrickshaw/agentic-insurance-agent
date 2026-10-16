@@ -1,0 +1,7 @@
+{
+ "classification_accuracy": 0.9,
+ "field_exact_match": 0.9,
+ "injection_recall": 1.0,
+ "adversarial_issue_recall": 1.0,
+ "triage_route_accuracy": 1.0
+}

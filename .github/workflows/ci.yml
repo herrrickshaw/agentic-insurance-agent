@@ -1,0 +1,22 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      pg:
+        image: pgvector/pgvector:pg16
+        env: {POSTGRES_PASSWORD: pw}
+        ports: ["5433:5432"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements-dev.txt
+      - run: python tools/build_models.py && git diff --exit-code models   # models must match generator
+      - run: python -m pytest -q ai/tests
+      - run: python tests/test_handlers.py
+      - name: AI regression evals (gate)
+        run: python -m ai.evals.run_evals
+        env: {AI_PROVIDER: mock}   # swap to Azure OpenAI secrets in a nightly job to gate real models
+      - run: docker build -t insurance-ai ai -f ai/Dockerfile .

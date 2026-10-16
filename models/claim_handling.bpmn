@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Defs_claim_handling" targetNamespace="http://insurance-workflow/bpmn">
+<bpmn:message id="Msg_PayoutConfirmed" name="PayoutConfirmed" /><bpmn:process id="claim_handling" name="Claim handling &amp; payout tracking" isExecutable="true" camunda:historyTimeToLive="P365D">
+<bpmn:startEvent id="start" name="Claim filed (FNOL)" />
+<bpmn:serviceTask id="verify" name="Verify coverage" camunda:type="external" camunda:topic="verify-coverage"></bpmn:serviceTask>
+<bpmn:exclusiveGateway id="g_cov" name="Covered?" default="Flow_3" />
+<bpmn:serviceTask id="fraud" name="Fraud score" camunda:type="external" camunda:topic="fraud-score"></bpmn:serviceTask>
+<bpmn:serviceTask id="aidocs" name="AI: classify &amp; extract documents" camunda:type="external" camunda:topic="ai-process-documents"></bpmn:serviceTask>
+<bpmn:serviceTask id="aitriage" name="AI: triage recommendation" camunda:type="external" camunda:topic="ai-triage"></bpmn:serviceTask>
+<bpmn:businessRuleTask id="triage" name="Triage rules (DMN)" camunda:decisionRef="claims-triage" camunda:resultVariable="triage" camunda:mapDecisionResult="singleResult" />
+<bpmn:exclusiveGateway id="g_route" name="Route" default="Flow_10" />
+<bpmn:userTask id="adjuster" name="Adjuster assessment" camunda:candidateGroups="adjusters"><bpmn:extensionElements><camunda:formData><camunda:formField id="claimSummary" label="AI claim summary" type="string" defaultValue="${claimSummary}" /><camunda:formField id="aiRoute" label="AI recommended route" type="string" defaultValue="${aiRoute}" /><camunda:formField id="approved" label="Approve claim?" type="boolean" /><camunda:formField id="approvedAmount" label="Approved amount" type="long" /></camunda:formData></bpmn:extensionElements></bpmn:userTask>
+<bpmn:userTask id="siu" name="SIU investigation" camunda:candidateGroups="siu"><bpmn:extensionElements><camunda:formData><camunda:formField id="claimSummary" label="AI claim summary" type="string" defaultValue="${claimSummary}" /><camunda:formField id="aiRoute" label="AI recommended route" type="string" defaultValue="${aiRoute}" /><camunda:formField id="approved" label="Approve claim?" type="boolean" /><camunda:formField id="approvedAmount" label="Approved amount" type="long" /></camunda:formData></bpmn:extensionElements></bpmn:userTask>
+<bpmn:exclusiveGateway id="g_appr" name="Approved?" default="Flow_14" />
+<bpmn:serviceTask id="settle" name="Settle claim (create payout)" camunda:type="external" camunda:topic="settle-claim"></bpmn:serviceTask>
+<bpmn:eventBasedGateway id="w" name="Await payout confirmation" />
+<bpmn:intermediateCatchEvent id="conf" name="Payout confirmed"><bpmn:messageEventDefinition messageRef="Msg_PayoutConfirmed" /></bpmn:intermediateCatchEvent>
+<bpmn:intermediateCatchEvent id="sla" name="Payout SLA breached"><bpmn:timerEventDefinition><bpmn:timeDuration xsi:type="bpmn:tFormalExpression">${payoutSla}</bpmn:timeDuration></bpmn:timerEventDefinition></bpmn:intermediateCatchEvent>
+<bpmn:serviceTask id="esc" name="Escalate payout" camunda:type="external" camunda:topic="escalate-payout"></bpmn:serviceTask>
+<bpmn:intermediateCatchEvent id="conf2" name="Payout confirmed (late)"><bpmn:messageEventDefinition messageRef="Msg_PayoutConfirmed" /></bpmn:intermediateCatchEvent>
+<bpmn:serviceTask id="close" name="Close claim &amp; notify" camunda:type="external" camunda:topic="close-claim"></bpmn:serviceTask>
+<bpmn:endEvent id="end_paid" name="Claim paid" />
+<bpmn:serviceTask id="reject" name="Notify claimant of rejection" camunda:type="external" camunda:topic="reject-claim"></bpmn:serviceTask>
+<bpmn:endEvent id="end_rej" name="Claim rejected" />
+<bpmn:sequenceFlow id="Flow_0" sourceRef="start" targetRef="verify"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_1" sourceRef="verify" targetRef="g_cov"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_2" name="covered" sourceRef="g_cov" targetRef="fraud"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${covered}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_3" name="not covered" sourceRef="g_cov" targetRef="reject"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_4" sourceRef="fraud" targetRef="aidocs"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_5" sourceRef="aidocs" targetRef="aitriage"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_6" sourceRef="aitriage" targetRef="triage"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_7" sourceRef="triage" targetRef="g_route"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_8" name="adjuster" sourceRef="g_route" targetRef="adjuster"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${triage.route == 'adjuster'}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_9" name="siu" sourceRef="g_route" targetRef="siu"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${triage.route == 'siu'}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_10" name="fast-track" sourceRef="g_route" targetRef="settle"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_11" sourceRef="adjuster" targetRef="g_appr"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_12" sourceRef="siu" targetRef="g_appr"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_13" name="approved" sourceRef="g_appr" targetRef="settle"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_14" name="denied" sourceRef="g_appr" targetRef="reject"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_15" sourceRef="settle" targetRef="w"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_16" sourceRef="w" targetRef="conf"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_17" sourceRef="w" targetRef="sla"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_18" sourceRef="sla" targetRef="esc"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_19" sourceRef="esc" targetRef="conf2"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_20" sourceRef="conf" targetRef="close"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_21" sourceRef="conf2" targetRef="close"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_22" sourceRef="close" targetRef="end_paid"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_23" sourceRef="reject" targetRef="end_rej"></bpmn:sequenceFlow>
+</bpmn:process>
+<bpmndi:BPMNDiagram id="Diagram_claim_handling"><bpmndi:BPMNPlane id="Plane_claim_handling" bpmnElement="claim_handling">
+<bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="97" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="verify_di" bpmnElement="verify"><dc:Bounds x="210" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="g_cov_di" bpmnElement="g_cov" isMarkerVisible="true"><dc:Bounds x="390" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="fraud_di" bpmnElement="fraud"><dc:Bounds x="510" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="aidocs_di" bpmnElement="aidocs"><dc:Bounds x="660" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="aitriage_di" bpmnElement="aitriage"><dc:Bounds x="810" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="triage_di" bpmnElement="triage"><dc:Bounds x="960" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="g_route_di" bpmnElement="g_route" isMarkerVisible="true"><dc:Bounds x="1140" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="adjuster_di" bpmnElement="adjuster"><dc:Bounds x="1260" y="60" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="siu_di" bpmnElement="siu"><dc:Bounds x="1260" y="300" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="g_appr_di" bpmnElement="g_appr" isMarkerVisible="true"><dc:Bounds x="1440" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="settle_di" bpmnElement="settle"><dc:Bounds x="1560" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="w_di" bpmnElement="w"><dc:Bounds x="1740" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="conf_di" bpmnElement="conf"><dc:Bounds x="1897" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="sla_di" bpmnElement="sla"><dc:Bounds x="1897" y="322" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="esc_di" bpmnElement="esc"><dc:Bounds x="2010" y="300" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="conf2_di" bpmnElement="conf2"><dc:Bounds x="2197" y="322" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="close_di" bpmnElement="close"><dc:Bounds x="2310" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_paid_di" bpmnElement="end_paid"><dc:Bounds x="2497" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="reject_di" bpmnElement="reject"><dc:Bounds x="810" y="420" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_rej_di" bpmnElement="end_rej"><dc:Bounds x="997" y="442" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNEdge id="Flow_0_di" bpmnElement="Flow_0"><di:waypoint x="133" y="220" /><di:waypoint x="210" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="320" y="220" /><di:waypoint x="390" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="440" y="220" /><di:waypoint x="510" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="440" y="220" /><di:waypoint x="625" y="220" /><di:waypoint x="625" y="460" /><di:waypoint x="810" y="460" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4"><di:waypoint x="620" y="220" /><di:waypoint x="660" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5"><di:waypoint x="770" y="220" /><di:waypoint x="810" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6"><di:waypoint x="920" y="220" /><di:waypoint x="960" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7"><di:waypoint x="1070" y="220" /><di:waypoint x="1140" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8"><di:waypoint x="1190" y="220" /><di:waypoint x="1225" y="220" /><di:waypoint x="1225" y="100" /><di:waypoint x="1260" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_9_di" bpmnElement="Flow_9"><di:waypoint x="1190" y="220" /><di:waypoint x="1225" y="220" /><di:waypoint x="1225" y="340" /><di:waypoint x="1260" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10"><di:waypoint x="1190" y="220" /><di:waypoint x="1560" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11"><di:waypoint x="1370" y="100" /><di:waypoint x="1405" y="100" /><di:waypoint x="1405" y="220" /><di:waypoint x="1440" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12"><di:waypoint x="1370" y="340" /><di:waypoint x="1405" y="340" /><di:waypoint x="1405" y="220" /><di:waypoint x="1440" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13"><di:waypoint x="1490" y="220" /><di:waypoint x="1560" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14"><di:waypoint x="1490" y="220" /><di:waypoint x="1150" y="220" /><di:waypoint x="1150" y="460" /><di:waypoint x="810" y="460" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_15_di" bpmnElement="Flow_15"><di:waypoint x="1670" y="220" /><di:waypoint x="1740" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16"><di:waypoint x="1790" y="220" /><di:waypoint x="1897" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_17_di" bpmnElement="Flow_17"><di:waypoint x="1790" y="220" /><di:waypoint x="1843" y="220" /><di:waypoint x="1843" y="340" /><di:waypoint x="1897" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_18_di" bpmnElement="Flow_18"><di:waypoint x="1933" y="340" /><di:waypoint x="2010" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_19_di" bpmnElement="Flow_19"><di:waypoint x="2120" y="340" /><di:waypoint x="2197" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_20_di" bpmnElement="Flow_20"><di:waypoint x="1933" y="220" /><di:waypoint x="2310" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_21_di" bpmnElement="Flow_21"><di:waypoint x="2233" y="340" /><di:waypoint x="2271" y="340" /><di:waypoint x="2271" y="220" /><di:waypoint x="2310" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_22_di" bpmnElement="Flow_22"><di:waypoint x="2420" y="220" /><di:waypoint x="2497" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_23_di" bpmnElement="Flow_23"><di:waypoint x="920" y="460" /><di:waypoint x="997" y="460" /></bpmndi:BPMNEdge>
+</bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+</bpmn:definitions>

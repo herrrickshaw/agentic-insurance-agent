@@ -1,0 +1,10 @@
+{"id": "g00", "doc_type": "claim_form", "text": "CLAIM FORM\nPolicy No: POL-2026-000004\nClaimant: Asha Rao\nDate of loss: 2026-10-01\nClaim amount: INR 8,000\nDescription: hospital bill", "fields": {"policy_number": "POL-2026-000004", "claim_amount": "8000", "loss_date": "2026-10-01"}}
+{"id": "g01", "doc_type": "claim_form", "text": "Claim form\nPolicy number: POL-2025-000112\nClaimant name: Ravi Kumar\nLoss date: 2026-09-12\nAmount claimed: Rs. 1,25,000\nRear-end collision", "fields": {"policy_number": "POL-2025-000112", "claim_amount": "125000", "loss_date": "2026-09-12"}}
+{"id": "g02", "doc_type": "invoice", "text": "INVOICE\nInvoice No: INV-8841\nVendor: Sunrise Motors\nBill to: Ravi Kumar\nGST included\nTotal amount: INR 42,500", "fields": {"invoice_number": "INV-8841", "total_amount": "42500"}}
+{"id": "g03", "doc_type": "invoice", "text": "Invoice number: AB-2201\nVendor: City Hospital\nGST 5%\nTotal: Rs 18,900", "fields": {"invoice_number": "AB-2201", "total_amount": "18900"}}
+{"id": "g04", "doc_type": "repair_estimate", "text": "REPAIR ESTIMATE\nEstimate No: EST-300\nLabour 8,000\nSpare parts 31,000\nTotal amount: INR 39,000", "fields": {"estimate_number": "EST-300", "total_amount": "39000"}}
+{"id": "g05", "doc_type": "medical_report", "text": "MEDICAL REPORT\nPatient: Meera Nair\nDiagnosis: acute appendicitis\nDischarge summary attached", "fields": {"patient_name": "Meera Nair", "diagnosis": "acute appendicitis"}}
+{"id": "g06", "doc_type": "payment_proof", "text": "Payment confirmation\nUTR: SBIN2610160001\nAmount: INR 6,000\nNEFT", "fields": {"utr": "SBIN2610160001", "amount": "6000"}}
+{"id": "g07", "doc_type": "kyc_id", "text": "Identity document\nAadhaar card\nName: Asha Rao\nNumber 1234 5678 9012", "fields": {"name": "Asha Rao", "id_type": "aadhaar"}}
+{"id": "g08", "doc_type": "policy_application", "text": "Proposal form for term life\nSum assured 5000000\nNominee: Rahul Rao", "fields": {}}
+{"id": "g09", "doc_type": "other", "text": "Hi, hope you are well. Lunch on Friday?", "fields": {}}

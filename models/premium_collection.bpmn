@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Defs_premium_collection" targetNamespace="http://insurance-workflow/bpmn">
+<bpmn:message id="Msg_PaymentReceived" name="PaymentReceived" /><bpmn:process id="premium_collection" name="Premium collection &amp; payment tracking" isExecutable="true" camunda:historyTimeToLive="P365D">
+<bpmn:startEvent id="start" name="Policy issued" />
+<bpmn:serviceTask id="invoice" name="Raise invoice" camunda:type="external" camunda:topic="create-invoice"></bpmn:serviceTask>
+<bpmn:eventBasedGateway id="w1" name="Await payment" />
+<bpmn:intermediateCatchEvent id="paid1" name="Payment received"><bpmn:messageEventDefinition messageRef="Msg_PaymentReceived" /></bpmn:intermediateCatchEvent>
+<bpmn:intermediateCatchEvent id="due" name="Due date passes"><bpmn:timerEventDefinition><bpmn:timeDuration xsi:type="bpmn:tFormalExpression">${dueIn}</bpmn:timeDuration></bpmn:timerEventDefinition></bpmn:intermediateCatchEvent>
+<bpmn:serviceTask id="remind" name="Send reminder" camunda:type="external" camunda:topic="send-reminder"></bpmn:serviceTask>
+<bpmn:eventBasedGateway id="w2" name="Grace period" />
+<bpmn:intermediateCatchEvent id="paid2" name="Payment received (late)"><bpmn:messageEventDefinition messageRef="Msg_PaymentReceived" /></bpmn:intermediateCatchEvent>
+<bpmn:intermediateCatchEvent id="grace" name="Grace expires"><bpmn:timerEventDefinition><bpmn:timeDuration xsi:type="bpmn:tFormalExpression">${graceIn}</bpmn:timeDuration></bpmn:timerEventDefinition></bpmn:intermediateCatchEvent>
+<bpmn:serviceTask id="lapse" name="Lapse policy" camunda:type="external" camunda:topic="lapse-policy"></bpmn:serviceTask>
+<bpmn:serviceTask id="recon" name="Reconcile payment" camunda:type="external" camunda:topic="reconcile-payment"></bpmn:serviceTask>
+<bpmn:endEvent id="end_paid" name="Premium paid" />
+<bpmn:endEvent id="end_lapsed" name="Policy lapsed" />
+<bpmn:sequenceFlow id="Flow_0" sourceRef="start" targetRef="invoice"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_1" sourceRef="invoice" targetRef="w1"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_2" sourceRef="w1" targetRef="paid1"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_3" sourceRef="w1" targetRef="due"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_4" sourceRef="due" targetRef="remind"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_5" sourceRef="remind" targetRef="w2"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_6" sourceRef="w2" targetRef="paid2"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_7" sourceRef="w2" targetRef="grace"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_8" sourceRef="grace" targetRef="lapse"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_9" sourceRef="lapse" targetRef="end_lapsed"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_10" sourceRef="paid1" targetRef="recon"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_11" sourceRef="paid2" targetRef="recon"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_12" sourceRef="recon" targetRef="end_paid"></bpmn:sequenceFlow>
+</bpmn:process>
+<bpmndi:BPMNDiagram id="Diagram_premium_collection"><bpmndi:BPMNPlane id="Plane_premium_collection" bpmnElement="premium_collection">
+<bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="97" y="82" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="invoice_di" bpmnElement="invoice"><dc:Bounds x="210" y="60" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="w1_di" bpmnElement="w1"><dc:Bounds x="390" y="75" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="paid1_di" bpmnElement="paid1"><dc:Bounds x="547" y="82" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="due_di" bpmnElement="due"><dc:Bounds x="547" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="remind_di" bpmnElement="remind"><dc:Bounds x="660" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="w2_di" bpmnElement="w2"><dc:Bounds x="840" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="paid2_di" bpmnElement="paid2"><dc:Bounds x="997" y="82" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="grace_di" bpmnElement="grace"><dc:Bounds x="997" y="322" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="lapse_di" bpmnElement="lapse"><dc:Bounds x="1110" y="300" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="recon_di" bpmnElement="recon"><dc:Bounds x="1110" y="60" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_paid_di" bpmnElement="end_paid"><dc:Bounds x="1297" y="82" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_lapsed_di" bpmnElement="end_lapsed"><dc:Bounds x="1297" y="322" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNEdge id="Flow_0_di" bpmnElement="Flow_0"><di:waypoint x="133" y="100" /><di:waypoint x="210" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="320" y="100" /><di:waypoint x="390" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="440" y="100" /><di:waypoint x="547" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="440" y="100" /><di:waypoint x="493" y="100" /><di:waypoint x="493" y="220" /><di:waypoint x="547" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4"><di:waypoint x="583" y="220" /><di:waypoint x="660" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5"><di:waypoint x="770" y="220" /><di:waypoint x="840" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6"><di:waypoint x="890" y="220" /><di:waypoint x="943" y="220" /><di:waypoint x="943" y="100" /><di:waypoint x="997" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7"><di:waypoint x="890" y="220" /><di:waypoint x="943" y="220" /><di:waypoint x="943" y="340" /><di:waypoint x="997" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8"><di:waypoint x="1033" y="340" /><di:waypoint x="1110" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_9_di" bpmnElement="Flow_9"><di:waypoint x="1220" y="340" /><di:waypoint x="1297" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10"><di:waypoint x="583" y="100" /><di:waypoint x="1110" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11"><di:waypoint x="1033" y="100" /><di:waypoint x="1110" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12"><di:waypoint x="1220" y="100" /><di:waypoint x="1297" y="100" /></bpmndi:BPMNEdge>
+</bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+</bpmn:definitions>

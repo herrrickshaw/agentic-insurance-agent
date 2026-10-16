@@ -1,0 +1,12 @@
+trigger: [main]
+pool: {vmImage: ubuntu-latest}
+steps:
+  - task: UsePythonVersion@0
+    inputs: {versionSpec: "3.12"}
+  - script: pip install -r requirements-dev.txt
+  - script: python tools/build_models.py && git diff --exit-code models
+  - script: python -m pytest -q ai/tests && python tests/test_handlers.py
+  - script: python -m ai.evals.run_evals
+    displayName: AI regression evals (gate)
+    env: {AI_PROVIDER: mock}
+  - script: docker build -t insurance-ai -f ai/Dockerfile .

@@ -71,7 +71,7 @@ async def run(llm: LLMClient) -> dict:
 
 
 def main():
-    llm = LLMClient(store=TraceStore(tempfile.mktemp(suffix=".db")))
+    llm = LLMClient(store=TraceStore(str(Path(tempfile.mkdtemp()) / "traces.db")))
     scores = asyncio.run(run(llm))
     failures = scores.pop("_failures")
     thresholds = json.loads((HERE / "thresholds.json").read_text())

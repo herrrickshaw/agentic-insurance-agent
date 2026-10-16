@@ -1,0 +1,2 @@
+# 1. A BPMN/DMN engine owns the process; workers and AI do the tasks
+Status: accepted. **Context**: need Bizagi-style orchestration from open source with audit, human tasks, timers and message correlation. **Decision**: Operaton (Camunda 7 fork, Apache-2.0) with external-task workers; DMN for rules. **Consequences**: process state is visible and auditable; workers are replaceable and testable in isolation; the engine adds a JVM service to operate. Camunda 8, Flowable and Temporal were considered (licence, diagrams, code-first respectively).

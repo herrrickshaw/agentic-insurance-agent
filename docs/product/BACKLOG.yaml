@@ -1,0 +1,68 @@
+# Product backlog as code. `python tools/traceability.py` validates it against the test suite.
+# priority: MoSCoW. wsjf = (value + time_criticality + risk_reduction) / size  (1-10 scales, relative).
+# status: done | ready (refined, next up) | backlog | blocked
+stories:
+- {id: POL-1, epic: Policy, title: Price term life from first principles, priority: Must, status: done, value: 8, tc: 5, rr: 8, size: 5,
+   ac: ["Given a mortality table and rate When net premium is computed Then PV(premiums) equals PV(benefits)", "Reserve is zero at issue and at expiry", "Smoker premium exceeds non-smoker at every age"]}
+- {id: POL-2, epic: Policy, title: Rate risk and route underwriting by rules, priority: Must, status: done, value: 8, tc: 5, rr: 8, size: 3,
+   ac: ["Given a smoker with high cover-to-income Then class is refer", "Mortality multiple above the cap is declined", "Decision table consumes the rating class"]}
+- {id: POL-3, epic: Payments, title: Track premium payments by message, priority: Must, status: done, value: 8, tc: 6, rr: 6, size: 3,
+   ac: ["Full payment activates the policy", "Partial payment keeps the policy pending"]}
+- {id: POL-4, epic: Payments, title: Lapse unpaid policies after grace, priority: Should, status: done, value: 5, tc: 3, rr: 5, size: 2,
+   ac: ["Given grace expired Then the policy is lapsed and the invoice overdue"]}
+- {id: CLM-1, epic: Claims, title: Verify coverage before processing a claim, priority: Must, status: done, value: 8, tc: 6, rr: 8, size: 3,
+   ac: ["Claims on unpaid or lapsed policies are not covered", "Claim above sum insured is rejected"]}
+- {id: CLM-2, epic: Claims, title: Extract claim documents with grounded evidence, priority: Must, status: done, value: 9, tc: 6, rr: 8, size: 5,
+   ac: ["Every extracted value quotes the source verbatim", "Ungrounded values are flagged for review"]}
+- {id: CLM-3, epic: Claims, title: Defend against prompt injection and PII leakage, priority: Must, status: done, value: 7, tc: 5, rr: 9, size: 3,
+   ac: ["Instructions inside documents are flagged and routed to a human", "Government IDs are redacted before model calls"]}
+- {id: CLM-4, epic: Claims, title: Triage agent recommends but cannot pay, priority: Must, status: done, value: 8, tc: 5, rr: 9, size: 5,
+   ac: ["Agent failure falls back to a human adjuster", "Fast-track above the auto limit is overridden"]}
+- {id: CLM-5, epic: Claims, title: Track payouts to confirmation, priority: Must, status: done, value: 7, tc: 5, rr: 6, size: 3,
+   ac: ["Payout moves pending to paid on confirmation"]}
+- {id: CUS-1, epic: Customers, title: Ingest customer files with validation and PII hashing, priority: Must, status: done, value: 8, tc: 6, rr: 8, size: 5,
+   ac: ["Rejected rows keep reasons", "Aadhaar and PAN are never stored in the clear", "Aadhaar checksum is verified"]}
+- {id: CUS-2, epic: Customers, title: Resolve duplicate customers with steward review, priority: Must, status: done, value: 8, tc: 5, rr: 7, size: 5,
+   ac: ["Strong evidence auto-merges", "Name and DOB alone never auto-merge", "Uncertain pairs go to a steward"]}
+- {id: CUS-3, epic: Customers, title: Build customer 360 profiles and segments, priority: Should, status: done, value: 6, tc: 3, rr: 4, size: 3,
+   ac: ["One profile per golden customer with a segment"]}
+- {id: PRT-1, epic: Portfolio, title: Quantify portfolio tail risk and concentration, priority: Must, status: done, value: 8, tc: 5, rr: 9, size: 8,
+   ac: ["VaR and TVaR are simulated gross and net of reinsurance", "Simulated mean matches theory"]}
+- {id: PRT-2, epic: Portfolio, title: Estimate reserves with chain-ladder and BF, priority: Should, status: done, value: 6, tc: 3, rr: 6, size: 3,
+   ac: ["Chain-ladder recovers a known development pattern"]}
+- {id: PRT-3, epic: Portfolio, title: Fit frequency/severity GLMs and credibility, priority: Could, status: done, value: 5, tc: 2, rr: 4, size: 5,
+   ac: ["GLM recovers known coefficients from simulated data"]}
+- {id: AIP-1, epic: AI platform, title: Route models with fallback and repair, priority: Must, status: done, value: 9, tc: 6, rr: 9, size: 5,
+   ac: ["Provider failure falls through to the next route", "Invalid JSON gets one repair retry", "All routes failing raises, never guesses"]}
+- {id: AIP-2, epic: AI platform, title: Gate releases on AI regression evals, priority: Must, status: done, value: 9, tc: 6, rr: 9, size: 3,
+   ac: ["Eval scores below threshold fail the build"]}
+- {id: AIP-3, epic: AI platform, title: Trace every model call for RCA, priority: Must, status: done, value: 7, tc: 5, rr: 7, size: 3,
+   ac: ["Failures are grouped by task, model and error"]}
+- {id: REC-1, epic: Records, title: Classify records against the file plan, priority: Must, status: done, value: 9, tc: 6, rr: 7, size: 5,
+   ac: ["Class accuracy at least 95% on the labelled set", "Low confidence goes to review"]}
+- {id: REC-2, epic: Records, title: Find redundant and trivial content before migrating, priority: Must, status: done, value: 8, tc: 5, rr: 5, size: 3,
+   ac: ["Exact duplicates keep the primary-tree copy", "Near duplicates go to review"]}
+- {id: REC-3, epic: Records, title: Make paths SharePoint-safe, priority: Must, status: done, value: 7, tc: 6, rr: 8, size: 2,
+   ac: ["Illegal characters and long paths are fixed in the target path", "Preflight blocks anything unsafe"]}
+- {id: REC-4, epic: Records, title: Label sensitivity from detected PII, priority: Must, status: done, value: 8, tc: 5, rr: 9, size: 2,
+   ac: ["Identifiers and IBANs raise the label to Highly Confidential"]}
+- {id: REC-5, epic: Records, title: Records manager decisions are validated and applied, priority: Must, status: done, value: 9, tc: 6, rr: 8, size: 5,
+   ac: ["Unclassified items cannot be approved", "Reclassify recomputes retention and sensitivity", "Invalid decisions leave no audit entry"]}
+- {id: REC-6, epic: Records, title: Tamper-evident audit trail, priority: Must, status: done, value: 8, tc: 5, rr: 10, size: 2,
+   ac: ["Edits, deletions and reordering are detected"]}
+- {id: REC-7, epic: Records, title: Cache classifications by content hash, priority: Should, status: done, value: 6, tc: 3, rr: 3, size: 2,
+   ac: ["A re-run of an unchanged library makes zero model calls", "A changed file plan invalidates the cache"]}
+- {id: REC-8, epic: Records, title: Budget guard on model calls, priority: Should, status: done, value: 6, tc: 4, rr: 6, size: 2,
+   ac: ["Over-budget items go to review, never silently guessed"]}
+- {id: REC-9, epic: Records, title: Migration readiness report and gates, priority: Must, status: done, value: 8, tc: 5, rr: 7, size: 2,
+   ac: ["Verdict is NOT READY while review items remain or the audit chain is broken"]}
+- {id: SEC-1, epic: Platform, title: Authenticate the engine REST and AI service, priority: Must, status: ready, value: 9, tc: 7, rr: 10, size: 3,
+   ac: ["Unauthenticated calls return 401", "Workers use a service credential from a secret store"]}
+- {id: DATA-1, epic: Platform, title: Durable engine state on Postgres, priority: Must, status: ready, value: 8, tc: 6, rr: 9, size: 3,
+   ac: ["Engine survives a restart with running instances intact"]}
+- {id: AIP-4, epic: AI platform, title: Nightly eval against real Azure OpenAI and Claude deployments, priority: Must, status: blocked, value: 9, tc: 6, rr: 9, size: 3,
+   ac: ["Scores are reported per model and compared to the last run"]}
+- {id: REC-10, epic: Records, title: Parse PDFs and Office files (OCR) before classification, priority: Should, status: backlog, value: 8, tc: 4, rr: 5, size: 8,
+   ac: ["Scanned PDFs yield text with page references"]}
+- {id: CUS-4, epic: Customers, title: Steward review UI with pair comparison, priority: Could, status: backlog, value: 5, tc: 2, rr: 3, size: 5,
+   ac: ["Steward sees both records side by side"]}

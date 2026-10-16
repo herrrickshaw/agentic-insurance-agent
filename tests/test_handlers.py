@@ -1,4 +1,6 @@
-import sys, unittest
+import sys
+import unittest
+import pytest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "workers"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -9,6 +11,12 @@ from ledger import connect
 class Flow(unittest.TestCase):
     def setUp(self):
         self.con = connect(":memory:")
+
+    @pytest.mark.story("POL-3")
+
+    @pytest.mark.story("CLM-1")
+
+    @pytest.mark.story("CLM-5")
 
     def test_policy_to_paid_to_claim_to_payout(self):
         v = dict(applicant="A", product="term_life", age=34, sumInsured=5_000_000)
@@ -31,12 +39,16 @@ class Flow(unittest.TestCase):
         h.close_claim(self.con, {**cv, "payoutRef": "N1"})
         self.assertEqual(self.con.execute("SELECT status FROM payments WHERE kind='payout'").fetchone()[0], "paid")
 
+    @pytest.mark.story("POL-4")
+
     def test_lapse_and_validation(self):
         self.assertFalse(h.validate_application(self.con, dict(applicant="A", product="x", age=3, sumInsured=1))["valid"])
         v = dict(applicant="A", product="motor", age=40, sumInsured=100, premium=3.5)
         v.update(h.issue_policy(self.con, v))
         h.lapse_policy(self.con, v)
         self.assertEqual(self.con.execute("SELECT status FROM policies").fetchone()[0], "lapsed")
+
+    @pytest.mark.story("POL-3")
 
     def test_partial_payment_keeps_policy_pending(self):
         v = dict(applicant="A", product="motor", age=40, sumInsured=1000, premium=35.0)

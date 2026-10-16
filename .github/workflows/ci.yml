@@ -1,22 +1,44 @@
 name: ci
-on: [push, pull_request]
+on: {push: {branches: [main]}, pull_request: {}}
+concurrency: {group: "ci-${{ github.ref }}", cancel-in-progress: true}
 jobs:
-  test:
+  static:                      # fast feedback first: lint, types, security, generated files in sync
     runs-on: ubuntu-latest
-    services:
-      pg:
-        image: pgvector/pgvector:pg16
-        env: {POSTGRES_PASSWORD: pw}
-        ports: ["5433:5432"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
+        with: {python-version: "3.12", cache: pip}
       - run: pip install -r requirements-dev.txt
-      - run: python tools/build_models.py && git diff --exit-code models   # models must match generator
-      - run: python -m pytest -q ai/tests insurance
-      - run: python tests/test_handlers.py
-      - name: AI regression evals (gate)
-        run: python -m ai.evals.run_evals
-        env: {AI_PROVIDER: mock}   # swap to Azure OpenAI secrets in a nightly job to gate real models
-      - run: docker build -t insurance-ai ai -f ai/Dockerfile .
+      - run: ruff check .
+      - run: mypy
+      - run: bandit -q -c pyproject.toml -r ai insurance records workers
+      - run: python tools/build_models.py && git diff --exit-code models
+  test:                        # unit, property, BDD, contract, with the coverage gate
+    runs-on: ubuntu-latest
+    strategy: {matrix: {python: ["3.12", "3.13"]}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ matrix.python }}", cache: pip}
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest --cov --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        with: {name: "coverage-${{ matrix.python }}", path: coverage.xml}
+  quality-gates:               # AI evals + backlog traceability
+    runs-on: ubuntu-latest
+    needs: [static]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements-dev.txt
+      - run: AI_PROVIDER=mock python -m ai.evals.run_evals
+      - run: AI_PROVIDER=mock python -m records.evals
+      - run: python tools/traceability.py && git diff --exit-code docs/product/TRACEABILITY.md
+  build:
+    runs-on: ubuntu-latest
+    needs: [test, quality-gates]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t insurance-ai -f ai/Dockerfile .
+      - run: docker build -t insurance-workers -f workers/Dockerfile .

@@ -33,5 +33,8 @@ def log(con, ref, event):
 
 
 def next_number(con, prefix, table, col):
-    n = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] + 1
+    if (table, col) not in {("policies", "policy_number"), ("claims", "claim_number")}:   # identifiers cannot be bound parameters
+        raise ValueError(f"unsupported numbering target {table}.{col}")
+    n = con.execute(f"SELECT COUNT(*) FROM {table}")  # nosec B608 - allow-listed above
+    n = n.fetchone()[0] + 1
     return f"{prefix}-{time.strftime('%Y')}-{n:06d}"

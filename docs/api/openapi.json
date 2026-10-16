@@ -1,0 +1,17 @@
+{
+ "/health": {
+  "get": ""
+ },
+ "/v1/ai/metrics": {
+  "get": ""
+ },
+ "/v1/claims/triage": {
+  "post": "#/components/schemas/TriageIn"
+ },
+ "/v1/documents/process": {
+  "post": "#/components/schemas/DocIn"
+ },
+ "/v1/documents/summarize": {
+  "post": "#/components/schemas/DocsIn"
+ }
+}

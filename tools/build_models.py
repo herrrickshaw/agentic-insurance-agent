@@ -273,6 +273,28 @@ def portfolio_risk_review():
     return p
 
 
+def records_migration():
+    p = Proc("records_migration", "Records migration with AI classification and review")
+    p.node("start", "start", "Legacy library exported", 0, 1)
+    p.node("analyse", "ext", "AI classify, ROT, PII, retention", 1, 1, topic="records-analyse")
+    p.node("g_rev", "xor", "Items to review?", 2, 1)
+    p.node("review", "user", "Records manager review", 3, 0, group="records-managers",
+           fields=[("analysisSummary", "Analysis", "string", "${analysisSummary}"), ("applyRecommended", "Apply recommended dispositions?", "boolean"),
+                   ("reviewer", "Reviewer name", "string")])
+    p.node("apply", "ext", "Apply decisions (audited)", 4, 0, topic="records-apply-decisions")
+    p.node("final", "ext", "Manifest, preflight, readiness report", 5, 1, topic="records-finalize")
+    p.node("g_ready", "xor", "Ready to migrate?", 6, 1)
+    p.node("end_ok", "end", "Manifest released", 7, 1)
+    p.node("block", "ext", "Notify records owner", 7, 2, topic="notify-owner", inputs={"notifyMessage": "${analysisSummary}"})
+    p.node("end_no", "end", "Blocked", 8, 2)
+    p.flow("start", "analyse"); p.flow("analyse", "g_rev")
+    p.flow("g_rev", "review", "${reviewCount > 0}", "yes"); p.flow("g_rev", "final", default=True, label="no")
+    p.flow("review", "apply"); p.flow("apply", "final"); p.flow("final", "g_ready")
+    p.flow("g_ready", "end_ok", "${migrationReady}", "ready"); p.flow("g_ready", "block", default=True, label="not ready")
+    p.flow("block", "end_no")
+    return p
+
+
 def dmn(did, name, inputs, outputs, rules):
     ins = "".join(
         f'<input id="in_{did}_{i}" label="{l}"><inputExpression id="ie_{did}_{i}" typeRef="{t}"><text>{e}</text></inputExpression></input>'
@@ -293,7 +315,7 @@ def dmn(did, name, inputs, outputs, rules):
 
 def main():
     OUT.mkdir(exist_ok=True)
-    for p in (policy_issuance(), premium_collection(), claim_handling(), customer_onboarding(), portfolio_risk_review()):
+    for p in (policy_issuance(), premium_collection(), claim_handling(), customer_onboarding(), portfolio_risk_review(), records_migration()):
         (OUT / f"{p.pid}.bpmn").write_text(p.xml())
     (OUT / "underwriting.dmn").write_text(dmn(
         "underwriting", "Underwriting",

@@ -20,7 +20,7 @@ def req(method, path, body=None, raw=None, headers=None):
             b = r.read()
             return json.loads(b) if b else None
     except urllib.error.HTTPError as e:
-        raise RuntimeError(f"{method} {path} -> {e.code}: {e.read().decode()[:400]}")
+        raise RuntimeError(f"{method} {path} -> {e.code}: {e.read().decode()[:400]}") from None
 
 
 def deploy():
@@ -53,8 +53,9 @@ def wait_var(pid, name, timeout=60):
 
 def main():
     deploy()
-    pol = req("POST", "/process-definition/key/policy_issuance/start", {"variables": V(
-        applicant="Asha Rao", product="term_life", age=34, sumInsured=5_000_000, smoker=False)})
+    pol = req("POST", "/process-definition/key/policy_issuance/start", {"variables": {**V(
+        applicant="Asha Rao", product="term_life", age=34, sumInsured=5_000_000, smoker=False, occupation="office"),
+        "annualIncome": {"value": 1_200_000, "type": "Double"}}})
     num = wait_var(pol["id"], "policyNumber")
     premium = wait_var(pol["id"], "premium")
     print("policy issued:", num, "premium", premium)

@@ -40,12 +40,14 @@ class TraceStore:
 
     def record(self, **r):
         vals = [r.get(c) for c in COLS.split(",")]
-        self.con.execute(self._q(f"INSERT INTO llm_calls({COLS}) VALUES({','.join('?' * 12)})"), vals)
+        sql = f"INSERT INTO llm_calls({COLS}) VALUES({','.join('?' * 12)})"  # nosec B608 - COLS is a module constant
+        self.con.execute(self._q(sql), vals)
         if not self.pg:
             self.con.commit()
 
     def rows(self, since=0.0):
-        cur = self.con.execute(self._q(f"SELECT {COLS} FROM llm_calls WHERE ts>=? ORDER BY ts"), (since,))
+        sql = f"SELECT {COLS} FROM llm_calls WHERE ts>=? ORDER BY ts"  # nosec B608 - COLS is a module constant
+        cur = self.con.execute(self._q(sql), (since,))
         return [dict(zip(COLS.split(","), x)) for x in cur.fetchall()]
 
     def summary(self, since=0.0):

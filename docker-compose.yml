@@ -41,8 +41,10 @@ services:
       ENGINE_URL: http://engine:8080/engine-rest
       AI_SERVICE_URL: http://ai:8090
       DEMO_SEED: "1"
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      AI_TRACE_DB: /data/worker_traces.db
       DUE_IN: ${DUE_IN:-P30D}
       GRACE_IN: ${GRACE_IN:-P15D}
       PAYOUT_SLA: ${PAYOUT_SLA:-P5D}
-    volumes: [ledger:/data, ./data/inbox:/data/inbox:ro]
+    volumes: [ledger:/data, ./data/inbox:/data/inbox:ro, ./data/records_in:/data/records_in:ro]
 volumes: {pgdata: {}, vecdata: {}, ledger: {}}

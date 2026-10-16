@@ -154,6 +154,8 @@ class MockProvider:
         elif task == "summarize":
             sents = [s.strip() for s in re.split(r"(?<=[.\n])\s+", user) if len(s.strip()) > 20][:3]
             out = {"summary": " ".join(sents)[:600], "key_points": sents, "open_questions": []}
+        elif task == "records_classify":
+            out = self._records_classify(meta["classes"], user)
         elif task == "agent":
             return self._agent(messages, tools or [])
         else:
@@ -165,6 +167,18 @@ class MockProvider:
     def _find(pattern, text, flags=re.I):
         m = re.search(pattern, text, flags)
         return (m.group(1).strip(), m.group(0).strip()) if m else (None, None)
+
+    def _records_classify(self, classes, text):
+        low = text.lower()
+        hits = {c: sum(k in low for k in kws) for c, kws in classes.items() if kws}
+        best = max(hits, key=hits.get) if hits else "unclassified"
+        n = hits.get(best, 0)
+        cls = best if n else "unclassified"
+        d = re.search(r"(\d{4}-\d{2}-\d{2})", text)
+        ent = re.search(r"(?:borrower|customer|complainant|vendor|client)\s*:\s*([^\n]+)", text, re.I)
+        return {"record_class": cls, "confidence": round(min(0.45 + 0.17 * n, 0.95), 2) if n else 0.2,
+                "rationale": f"{n} keyword hits", "document_date": d.group(1) if d else "",
+                "entity": ent.group(1).strip()[:80] if ent else ""}
 
     def _extract(self, doc_type, text):
         pats = {

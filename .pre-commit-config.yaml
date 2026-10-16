@@ -1,0 +1,11 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks: [{id: ruff, args: [--fix]}]
+  - repo: local
+    hooks:
+      - {id: models-in-sync, name: BPMN/DMN generated files match the generator, entry: bash -c 'python3 tools/build_models.py >/dev/null && git diff --exit-code models', language: system, pass_filenames: false, files: '^(tools/build_models.py|models/)'}
+      - {id: fast-tests, name: fast tests, entry: .venv/bin/python -m pytest -x -q -m "not integration", language: system, pass_filenames: false, stages: [pre-push]}
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks: [{id: gitleaks}]

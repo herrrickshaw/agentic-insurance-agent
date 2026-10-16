@@ -10,7 +10,7 @@ def hash_embed(text: str, dim=DIM) -> list[float]:
     """Offline feature-hashing embedding. Swap for Azure OpenAI embeddings in production (set dim to match)."""
     v = [0.0] * dim
     for tok in re.findall(r"[a-z0-9]+", text.lower()):
-        h = int(hashlib.md5(tok.encode()).hexdigest(), 16)
+        h = int(hashlib.md5(tok.encode(), usedforsecurity=False).hexdigest(), 16)
         v[h % dim] += 1.0 if (h >> 8) % 2 else -1.0
     n = math.sqrt(sum(x * x for x in v)) or 1.0
     return [x / n for x in v]

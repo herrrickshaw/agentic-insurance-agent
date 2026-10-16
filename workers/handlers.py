@@ -6,6 +6,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+from pathlib import Path
 import urllib.request
 
 from ledger import log, next_number
@@ -159,8 +160,10 @@ AI_URL = os.environ.get("AI_SERVICE_URL", "http://localhost:8090")
 
 
 def _ai(path, body):
+    if not AI_URL.startswith(("http://", "https://")):
+        raise ValueError("AI_SERVICE_URL must be http(s)")
     req = urllib.request.Request(AI_URL + path, json.dumps(body).encode(), {"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=90) as r:
+    with urllib.request.urlopen(req, timeout=90) as r:  # nosec B310 - AI_SERVICE_URL is operator config, scheme checked
         return json.loads(r.read())
 
 
@@ -272,7 +275,56 @@ def notify(con, v):
     return {}
 
 
+def _records_load(batch_dir):
+    return json.loads((Path(batch_dir) / "rows.json").read_text())
+
+
+def _records_save(batch_dir, rows):
+    (Path(batch_dir) / "rows.json").write_text(json.dumps(rows))
+
+
+def records_analyse(con, v):
+    from ai.client import LLMClient
+    from records import pipeline
+    from records.audit import AuditLog
+    out = Path(os.environ.get("RECORDS_OUT", "/data/out")) / v["batchLabel"]
+    out.mkdir(parents=True, exist_ok=True)
+    rows = pipeline.analyse(v["sourceDir"], LLMClient())
+    _records_save(out, rows)
+    AuditLog(out / "audit.jsonl").append("system", "analyse", v["sourceDir"], {"files": len(rows)})
+    cnt = {s: sum(r["status"] == s for r in rows) for s in ("migrate", "review", "exclude")}
+    log(con, v["batchLabel"], f"records analysed {len(rows)} files: {cnt}")
+    return {"batchDir": str(out), "filesAnalysed": len(rows), "reviewCount": cnt["review"], "migrateCount": cnt["migrate"],
+            "excludeCount": cnt["exclude"], "analysisSummary": f"{len(rows)} files: {cnt['migrate']} ready, {cnt['review']} need review, {cnt['exclude']} excluded (ROT)"}
+
+
+def records_apply_decisions(con, v):
+    from records import review
+    from records.audit import AuditLog
+    rows, audit = _records_load(v["batchDir"]), AuditLog(Path(v["batchDir"]) / "audit.jsonl")
+    n = 0
+    if v.get("applyRecommended"):
+        n = review.apply_decisions(rows, review.recommended_decisions(rows), v.get("reviewer") or "records-manager", audit)
+    _records_save(v["batchDir"], rows)
+    left = sum(r["status"] == "review" for r in rows)
+    log(con, v["batchLabel"], f"records review: {n} decisions applied, {left} still open")
+    return {"decisionsApplied": n, "reviewCount": left}
+
+
+def records_finalize(con, v):
+    from records import pipeline, report
+    from records.audit import AuditLog
+    rows, audit = _records_load(v["batchDir"]), AuditLog(Path(v["batchDir"]) / "audit.jsonl")
+    pipeline.write_manifest(rows, v["batchDir"])
+    text, ready = report.readiness(rows, audit)
+    (Path(v["batchDir"]) / "readiness.md").write_text(text)
+    audit.append("system", "finalize", v["batchLabel"], {"ready": ready})
+    log(con, v["batchLabel"], f"records manifest finalised: {'READY' if ready else 'NOT READY'}")
+    return {"migrationReady": ready, "manifestPath": str(Path(v["batchDir"]) / "manifest.csv")}
+
+
 HANDLERS = {
+    "records-analyse": records_analyse, "records-apply-decisions": records_apply_decisions, "records-finalize": records_finalize,
     "rate-risk": rate_risk, "ingest-customers": ingest_customers, "resolve-entities": resolve_entities,
     "apply-steward-decisions": apply_steward_decisions, "build-profiles": build_profiles_h,
     "portfolio-metrics": portfolio_metrics, "run-reserving": run_reserving,

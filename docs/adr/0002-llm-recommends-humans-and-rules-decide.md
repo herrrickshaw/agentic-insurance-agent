@@ -1,0 +1,2 @@
+# 2. The LLM recommends; rules and humans decide
+Status: accepted. **Context**: payouts and record disposal are irreversible and regulated. **Decision**: models classify, extract and recommend; DMN tables and human tasks decide; the agent cannot move money; failures fall back to a human lane; every decision is recorded. **Consequences**: slower than full automation, but explainable and safe to evolve; guard rails are code, covered by tests (CLM-3, CLM-4, REC-5).

@@ -45,3 +45,9 @@ Customer ingestion and entity resolution, 360 profiles, portfolio exposure/VaR/c
 .venv/bin/python -m pytest -q insurance ai/tests
 .venv/bin/python scripts/demo_customers_portfolio.py   # needs the compose stack running
 ```
+
+## Engineering system (SDLC, Agile, testing)
+Backlog and acceptance criteria live as code (`docs/product/BACKLOG.yaml`) and are checked against the tests (`make trace`). Layers: unit, property-based (hypothesis), BDD (Gherkin), contract (OpenAPI snapshot), integration (live stack), AI evals, mutation testing. `make ci` runs lint, types, security, tests with an 85% coverage gate, evals and traceability. See `docs/process/ENGINEERING_PROCESS.md`, `docs/TEST_STRATEGY.md`, `docs/security/THREAT_MODEL.md`, `docs/adr/`.
+
+## Records migration (`records/`)
+AI classification against a file plan, ROT analysis, PII sensitivity labels, SharePoint-safe paths, audited records-manager review and a readiness report: `python -m records.run <library> <out> --apply-recommended`, or the `records_migration` BPMN process. Retention periods in `records/fileplan.json` are illustrative.

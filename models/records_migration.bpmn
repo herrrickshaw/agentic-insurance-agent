@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Defs_records_migration" targetNamespace="http://insurance-workflow/bpmn">
+<bpmn:process id="records_migration" name="Records migration with AI classification and review" isExecutable="true" camunda:historyTimeToLive="P365D">
+<bpmn:startEvent id="start" name="Legacy library exported" />
+<bpmn:serviceTask id="analyse" name="AI classify, ROT, PII, retention" camunda:type="external" camunda:topic="records-analyse"></bpmn:serviceTask>
+<bpmn:exclusiveGateway id="g_rev" name="Items to review?" default="Flow_3" />
+<bpmn:userTask id="review" name="Records manager review" camunda:candidateGroups="records-managers"><bpmn:extensionElements><camunda:formData><camunda:formField id="analysisSummary" label="Analysis" type="string" defaultValue="${analysisSummary}" /><camunda:formField id="applyRecommended" label="Apply recommended dispositions?" type="boolean" /><camunda:formField id="reviewer" label="Reviewer name" type="string" /></camunda:formData></bpmn:extensionElements></bpmn:userTask>
+<bpmn:serviceTask id="apply" name="Apply decisions (audited)" camunda:type="external" camunda:topic="records-apply-decisions"></bpmn:serviceTask>
+<bpmn:serviceTask id="final" name="Manifest, preflight, readiness report" camunda:type="external" camunda:topic="records-finalize"></bpmn:serviceTask>
+<bpmn:exclusiveGateway id="g_ready" name="Ready to migrate?" default="Flow_8" />
+<bpmn:endEvent id="end_ok" name="Manifest released" />
+<bpmn:serviceTask id="block" name="Notify records owner" camunda:type="external" camunda:topic="notify-owner"><bpmn:extensionElements><camunda:inputOutput><camunda:inputParameter name="notifyMessage">${analysisSummary}</camunda:inputParameter></camunda:inputOutput></bpmn:extensionElements></bpmn:serviceTask>
+<bpmn:endEvent id="end_no" name="Blocked" />
+<bpmn:sequenceFlow id="Flow_0" sourceRef="start" targetRef="analyse"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_1" sourceRef="analyse" targetRef="g_rev"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_2" name="yes" sourceRef="g_rev" targetRef="review"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reviewCount &gt; 0}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_3" name="no" sourceRef="g_rev" targetRef="final"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_4" sourceRef="review" targetRef="apply"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_5" sourceRef="apply" targetRef="final"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_6" sourceRef="final" targetRef="g_ready"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_7" name="ready" sourceRef="g_ready" targetRef="end_ok"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${migrationReady}</bpmn:conditionExpression></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_8" name="not ready" sourceRef="g_ready" targetRef="block"></bpmn:sequenceFlow>
+<bpmn:sequenceFlow id="Flow_9" sourceRef="block" targetRef="end_no"></bpmn:sequenceFlow>
+</bpmn:process>
+<bpmndi:BPMNDiagram id="Diagram_records_migration"><bpmndi:BPMNPlane id="Plane_records_migration" bpmnElement="records_migration">
+<bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="97" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="analyse_di" bpmnElement="analyse"><dc:Bounds x="210" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="g_rev_di" bpmnElement="g_rev" isMarkerVisible="true"><dc:Bounds x="390" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="review_di" bpmnElement="review"><dc:Bounds x="510" y="60" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="apply_di" bpmnElement="apply"><dc:Bounds x="660" y="60" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="final_di" bpmnElement="final"><dc:Bounds x="810" y="180" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="g_ready_di" bpmnElement="g_ready" isMarkerVisible="true"><dc:Bounds x="990" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_ok_di" bpmnElement="end_ok"><dc:Bounds x="1147" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="block_di" bpmnElement="block"><dc:Bounds x="1110" y="300" width="110" height="80" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="end_no_di" bpmnElement="end_no"><dc:Bounds x="1297" y="322" width="36" height="36" /></bpmndi:BPMNShape>
+<bpmndi:BPMNEdge id="Flow_0_di" bpmnElement="Flow_0"><di:waypoint x="133" y="220" /><di:waypoint x="210" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="320" y="220" /><di:waypoint x="390" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="440" y="220" /><di:waypoint x="475" y="220" /><di:waypoint x="475" y="100" /><di:waypoint x="510" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="440" y="220" /><di:waypoint x="810" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4"><di:waypoint x="620" y="100" /><di:waypoint x="660" y="100" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5"><di:waypoint x="770" y="100" /><di:waypoint x="790" y="100" /><di:waypoint x="790" y="220" /><di:waypoint x="810" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6"><di:waypoint x="920" y="220" /><di:waypoint x="990" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7"><di:waypoint x="1040" y="220" /><di:waypoint x="1147" y="220" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8"><di:waypoint x="1040" y="220" /><di:waypoint x="1075" y="220" /><di:waypoint x="1075" y="340" /><di:waypoint x="1110" y="340" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="Flow_9_di" bpmnElement="Flow_9"><di:waypoint x="1220" y="340" /><di:waypoint x="1297" y="340" /></bpmndi:BPMNEdge>
+</bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+</bpmn:definitions>

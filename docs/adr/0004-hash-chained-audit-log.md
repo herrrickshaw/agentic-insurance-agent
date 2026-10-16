@@ -1,0 +1,2 @@
+# 4. Hash-chained append-only audit log for records decisions
+Status: accepted. **Context**: disposal and retention decisions need evidence that survives scrutiny. **Decision**: JSONL entries each commit to the previous hash; `verify()` detects edits, deletions and reordering; the readiness report is NOT READY if the chain breaks. **Consequences**: tamper-evident, not tamper-proof (someone with write access can rewrite the whole file): anchor the head hash externally (WORM storage or a signed timestamp) before relying on it.

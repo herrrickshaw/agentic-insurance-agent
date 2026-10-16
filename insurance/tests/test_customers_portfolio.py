@@ -1,3 +1,4 @@
+import pytest
 import tempfile
 from pathlib import Path
 
@@ -5,6 +6,9 @@ from insurance.customers import ingest, profile, resolve, validate as v
 from insurance.db import connect
 from insurance.portfolio import risk, synth
 from insurance.underwriting import risk as uw
+
+
+@pytest.mark.story("CUS-1")
 
 
 def test_verhoeff_and_validation():
@@ -21,6 +25,9 @@ def test_verhoeff_and_validation():
             assert "assert" not in str(type(e)).lower()
 
 
+@pytest.mark.story("CUS-2")
+
+
 def test_jaro_winkler_and_scoring():
     assert resolve.jaro_winkler("MARTHA", "MARHTA") > 0.96 and resolve.jaro_winkler("abc", "xyz") == 0
     a = dict(pan_hash=None, aadhaar_hash=None, dob="1990-01-01", full_name="Asha Rao", phone="+919876543210", email="", pincode="560001")
@@ -30,6 +37,18 @@ def test_jaro_winkler_and_scoring():
     sparse = dict(a, phone="", email="", pincode="")
     assert resolve.REVIEW <= resolve.score(sparse, dict(sparse)) < resolve.AUTO      # name+dob only -> steward review
     assert resolve.score(dict(a, pan_hash="x"), dict(b, pan_hash="x", dob="1980-01-01", full_name="Zed")) == 1.0
+
+
+@pytest.mark.story("CUS-1")
+
+
+@pytest.mark.story("CUS-2")
+
+
+@pytest.mark.story("CUS-3")
+
+
+@pytest.mark.story("PRT-1")
 
 
 def test_pipeline_end_to_end():
@@ -50,6 +69,9 @@ def test_pipeline_end_to_end():
     m = risk.snapshot(con, own_funds=2e9, n_sims=5000)
     assert m["var995"] >= m["expected_loss"] > 0 and m["tvar99"] > 0 and m["var995_net_of_reinsurance"] <= m["var995"] * 1.001
     assert 0 < m["max_state_share_pct"] <= 100
+
+
+@pytest.mark.story("POL-2")
 
 
 def test_underwriting_rating():

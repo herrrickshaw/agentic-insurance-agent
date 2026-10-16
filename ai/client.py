@@ -29,13 +29,14 @@ def default_routes() -> dict[str, list[Route]]:
         r = {"classify": [Route("azure", az_small), Route("azure", az_large)],
              "summarize": [Route("azure", az_small), Route("azure", az_large)],
              "extract": [Route("azure", az_large), Route("anthropic", claude)],
-             "agent": [Route("azure", az_large), Route("anthropic", claude)]}
+             "agent": [Route("azure", az_large), Route("anthropic", claude)],
+             "records_classify": [Route("azure", az_small), Route("azure", az_large)]}
         if not os.environ.get("ANTHROPIC_API_KEY"):
             r = {k: [x for x in v if x.provider != "anthropic"] for k, v in r.items()}
         return r
     if os.environ.get("ANTHROPIC_API_KEY") and os.environ.get("AI_PROVIDER") != "mock":
-        return {t: [Route("anthropic", claude)] for t in ("classify", "summarize", "extract", "agent")}
-    return {t: [Route("mock", "mock-heuristic-1")] for t in ("classify", "summarize", "extract", "agent")}
+        return {t: [Route("anthropic", claude)] for t in ("classify", "summarize", "extract", "agent", "records_classify")}
+    return {t: [Route("mock", "mock-heuristic-1")] for t in ("classify", "summarize", "extract", "agent", "records_classify")}
 
 
 def build_providers():

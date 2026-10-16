@@ -6,3 +6,4 @@ video/out/
 *.mp4
 data/inbox/*.csv
 .DS_Store
+data/records_in/

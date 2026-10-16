@@ -1,0 +1,26 @@
+name: nightly
+on: {schedule: [{cron: "17 2 * * *"}], workflow_dispatch: {}}
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements-dev.txt
+      - run: python tools/mutation_smoke.py --per-module 40
+  real-model-evals:            # AIP-4: blocked until Azure OpenAI / Anthropic secrets exist in the repo settings
+    if: ${{ vars.REAL_MODEL_EVALS == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements-dev.txt
+      - run: python -m ai.evals.run_evals && python -m records.evals
+        env:
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_DEPLOY_SMALL: ${{ vars.AZURE_DEPLOY_SMALL }}
+          AZURE_DEPLOY_LARGE: ${{ vars.AZURE_DEPLOY_LARGE }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

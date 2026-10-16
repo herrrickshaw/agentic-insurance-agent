@@ -14,8 +14,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
 
 def call(path, body):
+    if not ENGINE.startswith(("http://", "https://")):
+        raise ValueError("ENGINE_URL must be http(s)")
     req = urllib.request.Request(f"{ENGINE}{path}", json.dumps(body).encode(), {"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=60) as r:
+    with urllib.request.urlopen(req, timeout=60) as r:  # nosec B310 - scheme validated above
         data = r.read()
         return json.loads(data) if data else None
 

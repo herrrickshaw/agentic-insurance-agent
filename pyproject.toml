@@ -1,0 +1,52 @@
+[project]
+name = "agentic-insurance-agent"
+version = "0.3.0"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "ai/tests", "insurance/tests", "records/tests"]
+addopts = "-q --strict-markers"
+markers = [
+  "story(id): links a test to a backlog story (docs/product/BACKLOG.yaml) for traceability",
+  "property: hypothesis property-based tests",
+  "bdd: Gherkin scenarios",
+  "contract: API/schema contract tests",
+  "integration: needs the live compose stack (skipped when the engine is unreachable)",
+]
+
+[tool.coverage.run]
+source = ["ai", "insurance", "records", "workers"]
+omit = ["*/tests/*", "ai/service.py", "records/run.py"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = false
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "S", "C4"]
+ignore = ["E501", "E701", "E702", "E741", "E731", "C408", "B905", "S101", "S311", "S603", "S607", "S608", "S310", "S306", "B008", "UP037", "S324"]   # asserts in tests, seeded RNG for synthetic data, md5 feature-hash only
+[tool.ruff.lint.per-file-ignores]
+"*/tests/*" = ["S", "B"]
+"scripts/*" = ["S", "E402", "E701", "E702"]
+"conftest.py" = ["S"]
+"records/synth.py" = ["E701", "E702"]
+"records/tests/*" = ["E701", "E702"]
+"insurance/tests/*" = ["E701", "E702"]
+"tests/*" = ["S", "B", "E701", "E702"]
+"ai/tests/*" = ["E701", "E702", "E402"]
+"insurance/portfolio/synth.py" = ["E701", "E702"]
+"video/*" = ["S", "E", "F", "B", "UP", "C4"]
+"tools/*" = ["E701", "E702"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = false
+files = ["insurance/actuarial", "records/audit.py", "records/review.py", "records/rot.py", "records/inventory.py"]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "video"]
+skips = ["B311", "B101"]   # random is used only to generate synthetic demo data, never for secrets

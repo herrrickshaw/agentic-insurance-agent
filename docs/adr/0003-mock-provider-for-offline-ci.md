@@ -1,0 +1,2 @@
+# 3. A deterministic mock provider backs CI
+Status: accepted with a known weakness. **Context**: CI must run without credentials or cost. **Decision**: `MockProvider` implements the provider interface with keyword/regex logic. **Consequences**: fast, deterministic gates for plumbing, routing, guardrails and schemas; scores say nothing about real-model quality, so AIP-4 (nightly real-model evals) is a Must and currently blocked on credentials.

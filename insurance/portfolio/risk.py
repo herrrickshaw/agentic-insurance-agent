@@ -62,7 +62,6 @@ def snapshot(con, own_funds, n_sims=50_000, seed=3, life_retention=5_000_000, la
     # --- Monte Carlo: lines are independent here (a stated simplification: no catastrophe/correlation) ---
     rng_seed, agg, net = seed, np.zeros(n_sims), np.zeros(n_sims)
     life = [r for r in rows if r["product"] == "term_life"]
-    base = mo.MortalityTable.gompertz_makeham()
     if life:
         lam = float(el[[i for i, r in enumerate(rows) if r["product"] == "term_life"]].sum() / np.mean([r["sum_insured"] for r in life]))
         n, _, idx = sim.simulate_aggregate(max(lam, 1e-9), 0, 0.01, n_sims, seed=rng_seed)

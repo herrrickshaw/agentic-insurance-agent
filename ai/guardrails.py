@@ -17,7 +17,7 @@ POLICY_NO = re.compile(r"^POL-\d{4}-\d{6}$")
 
 
 def redact_pii(text: str):
-    found = {}
+    found: dict[str, int] = {}
     for label, rx in PII.items():
         def sub(m, label=label):
             found[label] = found.get(label, 0) + 1
@@ -45,7 +45,8 @@ def check_extraction(source: str, fields: dict, doc_type: str) -> Verdict:
         if not ev or ev not in norm:
             v.issues.append(f"{name}: evidence not found in source (possible hallucination)")
     if "claim_amount" in fields or "total_amount" in fields:
-        raw = (fields.get("claim_amount") or fields.get("total_amount"))["value"]
+        amount_field = fields.get("claim_amount") or fields["total_amount"]
+        raw = amount_field["value"]
         try:
             if float(str(raw).replace(",", "")) <= 0:
                 v.issues.append("amount must be positive")

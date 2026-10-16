@@ -46,7 +46,7 @@ def concentration(rows, key):
     return share, float(sum(s * s for s in share.values()))
 
 
-def snapshot(con, own_funds, n_sims=50_000, seed=3, life_retention=5_000_000, label="run"):
+def snapshot(con, own_funds, n_sims=50_000, seed=3, life_retention=5_000_000, label="run", return_samples=False):
     rows = policy_frame(con)
     if not rows:
         raise ValueError("empty policy book")
@@ -90,7 +90,7 @@ def snapshot(con, own_funds, n_sims=50_000, seed=3, life_retention=5_000_000, la
          "product_mix_pct": {k: round(v * 100, 1) for k, v in by_prod.items()}}
     con.execute("INSERT INTO portfolio_snapshots(ts,label,metrics) VALUES(?,?,?)", (time.time(), label, json.dumps(m)))
     con.commit()
-    return m
+    return (m, agg, net) if return_samples else m
 
 
 def synthetic_triangle(ultimate_by_origin, pattern=(0.45, 0.72, 0.88, 0.96, 1.0), noise=0.03, seed=2):

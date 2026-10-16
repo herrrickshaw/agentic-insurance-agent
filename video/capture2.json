@@ -1,0 +1,475 @@
+{
+ "batch": {
+  "batch_id": "B6a90e676",
+  "source": "/data/inbox/customers_agent_app.csv",
+  "channel": "agent_app",
+  "ts": 1792145392.5767226,
+  "rows_in": 3240,
+  "rows_ok": 3142,
+  "rows_rejected": 98
+ },
+ "reject_reasons": [
+  {
+   "field": "pan",
+   "n": 32
+  },
+  {
+   "field": "pincode",
+   "n": 28
+  },
+  {
+   "field": "dob",
+   "n": 20
+  },
+  {
+   "field": "email",
+   "n": 18
+  }
+ ],
+ "raw": 3142,
+ "golden": 2915,
+ "queue": [
+  {
+   "status": "merged",
+   "n": 47
+  }
+ ],
+ "sample_pairs": [
+  {
+   "na": "Maanoj Iyer",
+   "nb": "Maanoj Iyer",
+   "score": 0.875
+  },
+  {
+   "na": "Suresh Singh",
+   "nb": "Suresh Singh",
+   "score": 0.875
+  },
+  {
+   "na": "Divyaa Reddy",
+   "nb": "Divyaa Reddy",
+   "score": 0.875
+  },
+  {
+   "na": "Amit Singh",
+   "nb": "Amit Singh",
+   "score": 0.875
+  }
+ ],
+ "segments": [
+  {
+   "segment": "low-value/low-risk",
+   "n": 932
+  },
+  {
+   "segment": "mid-value/low-risk",
+   "n": 560
+  },
+  {
+   "segment": "high-value/low-risk",
+   "n": 453
+  },
+  {
+   "segment": "high-value/medium-risk",
+   "n": 418
+  },
+  {
+   "segment": "low-value/medium-risk",
+   "n": 201
+  },
+  {
+   "segment": "mid-value/medium-risk",
+   "n": 192
+  },
+  {
+   "segment": "low-value/high-risk",
+   "n": 80
+  },
+  {
+   "segment": "mid-value/high-risk",
+   "n": 41
+  },
+  {
+   "segment": "high-value/high-risk",
+   "n": 38
+  }
+ ],
+ "kyc": [
+  {
+   "kyc_level": "full_docs",
+   "n": 2914
+  },
+  {
+   "kyc_level": "none",
+   "n": 1
+  }
+ ],
+ "completeness": 0.999,
+ "cover_to_income_p95": 23.0,
+ "portfolio": {
+  "policies": 3845,
+  "customers": 2429,
+  "total_sum_insured": 14869398000.0,
+  "premium": 334069098.0,
+  "expected_loss": 213583695.0,
+  "expected_loss_ratio": 0.639,
+  "var995": 370630299.0,
+  "tvar99": 377348228.0,
+  "var995_net_of_reinsurance": 174541812.0,
+  "own_funds": 1500000000.0,
+  "var995_pct_own_funds": 24.7,
+  "max_state": "MH",
+  "max_state_share_pct": 22.0,
+  "hhi_state": 0.149,
+  "top10_customer_share_pct": 3.37,
+  "largest_single_cover": 58520000.0,
+  "product_mix_pct": {
+   "motor": 5.8,
+   "home": 24.5,
+   "term_life": 60.9,
+   "health": 8.8
+  }
+ },
+ "agg_hist": {
+  "counts": [
+   2,
+   7,
+   10,
+   26,
+   68,
+   96,
+   166,
+   291,
+   405,
+   571,
+   834,
+   984,
+   1317,
+   1590,
+   1933,
+   2102,
+   2419,
+   2679,
+   2691,
+   2828,
+   2829,
+   2758,
+   2711,
+   2652,
+   2420,
+   2159,
+   2043,
+   1897,
+   1640,
+   1358,
+   1215,
+   1063,
+   839,
+   726,
+   584,
+   458,
+   369,
+   310,
+   240,
+   161,
+   117,
+   131,
+   84,
+   69,
+   38,
+   37,
+   20,
+   12,
+   15,
+   10,
+   4,
+   4,
+   3,
+   1,
+   1,
+   1,
+   1,
+   0,
+   0,
+   1
+  ],
+  "net_counts": [
+   48,
+   181,
+   512,
+   1229,
+   2187,
+   3777,
+   5297,
+   6528,
+   7031,
+   6609,
+   5608,
+   4259,
+   2899,
+   1787,
+   1046,
+   537,
+   262,
+   108,
+   54,
+   23,
+   6,
+   1,
+   1,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "edges": [
+   47.034110321056396,
+   54.645070300796036,
+   62.25603028053568,
+   69.86699026027532,
+   77.47795024001496,
+   85.08891021975461,
+   92.69987019949426,
+   100.31083017923389,
+   107.92179015897352,
+   115.53275013871317,
+   123.14371011845282,
+   130.75467009819246,
+   138.3656300779321,
+   145.97659005767173,
+   153.58755003741138,
+   161.19851001715102,
+   168.80946999689067,
+   176.42042997663032,
+   184.03138995636996,
+   191.64234993610958,
+   199.25330991584923,
+   206.86426989558888,
+   214.47522987532852,
+   222.08618985506817,
+   229.69714983480782,
+   237.30810981454744,
+   244.91906979428708,
+   252.53002977402673,
+   260.14098975376635,
+   267.751949733506,
+   275.36290971324564,
+   282.97386969298526,
+   290.58482967272494,
+   298.19578965246455,
+   305.80674963220423,
+   313.41770961194385,
+   321.0286695916835,
+   328.63962957142314,
+   336.25058955116276,
+   343.86154953090244,
+   351.47250951064206,
+   359.08346949038173,
+   366.69442947012135,
+   374.30538944986097,
+   381.91634942960064,
+   389.52730940934026,
+   397.13826938907994,
+   404.74922936881956,
+   412.36018934855923,
+   419.97114932829885,
+   427.58210930803847,
+   435.19306928777814,
+   442.80402926751776,
+   450.41498924725744,
+   458.02594922699706,
+   465.6369092067367,
+   473.24786918647635,
+   480.85882916621597,
+   488.46978914595564,
+   496.08074912569526,
+   503.6917091054349
+  ],
+  "mean": 213.6171637428796,
+  "var995": 370.630299,
+  "tvar99": 377.348228,
+  "net_var995": 174.541812
+ },
+ "product_si": {
+  "motor": 5.8,
+  "home": 24.5,
+  "term_life": 60.9,
+  "health": 8.8
+ },
+ "state_share": {
+  "MH": 22.0,
+  "KA": 17.9,
+  "TN": 16.5,
+  "DL": 13.0,
+  "TS": 9.7,
+  "UP": 8.6,
+  "GJ": 7.6,
+  "WB": 4.7
+ },
+ "reserving": {
+  "chain_ladder_reserve": 32413196.0,
+  "bf_reserve": 29029798.0,
+  "factors": [
+   1.5677,
+   1.237,
+   1.0506,
+   1.1847
+  ],
+  "basis": "synthetic triangle (no payment-development data in ledger)"
+ },
+ "customer_onboarding": {
+  "activities": [
+   "Ingest, validate & hash PII",
+   "Entity resolution (dedupe)",
+   "Data steward review",
+   "Apply steward decisions",
+   "Build customer 360 profiles & segments",
+   "Profiles ready"
+  ],
+  "vars": {
+   "autoMerged": 182,
+   "reviewPending": 0,
+   "goldenCustomers": 2960,
+   "profilesBuilt": 2915,
+   "var995PctOwnFunds": null,
+   "chainLadderReserve": null,
+   "bfReserve": null,
+   "metricsSummary": null
+  }
+ },
+ "portfolio_risk_review": {
+  "activities": [
+   "Exposure, VaR/TVaR, concentration",
+   "Reserving (chain-ladder / BF)",
+   "Risk-appetite limits (DMN)",
+   "Underwriting committee review",
+   "Update underwriting guidelines",
+   "Guidelines updated"
+  ],
+  "vars": {
+   "autoMerged": null,
+   "reviewPending": null,
+   "goldenCustomers": null,
+   "profilesBuilt": null,
+   "var995PctOwnFunds": 24.7,
+   "chainLadderReserve": 32413196.0,
+   "bfReserve": 29029798.0,
+   "metricsSummary": "VaR99.5=3.706e+08 (24.7% of own funds); largest state MH 22.0%; expected loss ratio 0.639"
+  }
+ },
+ "policies": [
+  {
+   "smoker": false,
+   "ratingClass": "preferred",
+   "mortalityMultiple": 1.0,
+   "premium": 44183.75,
+   "premiumBasis": "term 20y, mortality x1.00, i=6.00%, illustrative table",
+   "age": 35,
+   "sumInsured": 10000000
+  },
+  {
+   "smoker": true,
+   "ratingClass": "substandard",
+   "mortalityMultiple": 1.8,
+   "premium": 78272.68,
+   "premiumBasis": "term 20y, mortality x1.80, i=6.00%, illustrative table",
+   "age": 35,
+   "sumInsured": 10000000
+  }
+ ],
+ "premium_by_age": {
+  "ages": [
+   25,
+   30,
+   35,
+   40,
+   45,
+   50,
+   55,
+   60
+  ],
+  "nonsmoker": [
+   19324.75124717827,
+   27025.387864564636,
+   39321.9284254511,
+   58856.817154319484,
+   89639.65483714409,
+   137533.6153066922,
+   210613.8382064344,
+   318998.2892421572
+  ],
+  "smoker": [
+   34630.86749809456,
+   48306.768268540334,
+   69999.06323247972,
+   104097.58885643775,
+   156949.0772332657,
+   237137.44107942667,
+   355129.3497852772,
+   522090.4739442473
+  ]
+ },
+ "reserve_path": [
+  0.0,
+  20005.69362174347,
+  39789.59868142073,
+  59197.3249693861,
+  78050.90062877466,
+  96145.7800368134,
+  113247.46495058463,
+  129087.681063277,
+  143360.04152835213,
+  155715.11612901057,
+  165754.80904549995,
+  173025.9289049387,
+  177012.81110331527,
+  177128.82314392226,
+  172706.54750749504,
+  162986.39152145476,
+  147103.31746797805,
+  124071.31571245927,
+  92765.15498526722,
+  51898.83194349106,
+  0.0
+ ],
+ "identity": {
+  "A40": 0.1770883310995936,
+  "one_minus_d_a": 0.17708833109959488,
+  "q40": 0.0030695929641031405,
+  "q60": 0.01653496772408425,
+  "e35": 38.337591075538846
+ }
+}

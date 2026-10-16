@@ -1,0 +1,104 @@
+[
+ {
+  "id": "AI-1",
+  "name": "Claim document classification and extraction",
+  "purpose": "Classify and extract fields from claim documents for adjusters",
+  "scale": "medium",
+  "personal_data": "special",
+  "autonomy": "low",
+  "customer_facing": false,
+  "decision_effect": "advisory",
+  "prudential_impact": "medium",
+  "owner": "claims-platform",
+  "controls_in_place": [
+   "inventory",
+   "data_governance",
+   "monitoring",
+   "human_oversight"
+  ]
+ },
+ {
+  "id": "AI-2",
+  "name": "Claims triage agent",
+  "purpose": "Recommend fast-track, adjuster or investigation routing",
+  "scale": "medium",
+  "personal_data": "personal",
+  "autonomy": "medium",
+  "decision_effect": "advisory",
+  "prudential_impact": "medium",
+  "owner": "claims-platform",
+  "controls_in_place": [
+   "inventory",
+   "monitoring",
+   "human_oversight",
+   "robustness"
+  ]
+ },
+ {
+  "id": "AI-3",
+  "name": "Fraud score (placeholder)",
+  "purpose": "Flag claims for investigation",
+  "scale": "medium",
+  "personal_data": "personal",
+  "autonomy": "low",
+  "decision_effect": "advisory",
+  "fraud_detection_only": true,
+  "prudential_impact": "medium",
+  "owner": "claims-platform",
+  "controls_in_place": [
+   "inventory"
+  ]
+ },
+ {
+  "id": "AI-4",
+  "name": "Life underwriting rating",
+  "purpose": "Mortality rating and referral for term life",
+  "scale": "medium",
+  "personal_data": "special",
+  "autonomy": "medium",
+  "customer_facing": true,
+  "decision_effect": "automated",
+  "financial_inclusion_line": true,
+  "prudential_impact": "high",
+  "life_health_underwriting_or_pricing": true,
+  "owner": "underwriting",
+  "controls_in_place": [
+   "inventory",
+   "data_governance"
+  ]
+ },
+ {
+  "id": "AI-5",
+  "name": "Customer entity resolution",
+  "purpose": "Merge duplicate customer records",
+  "scale": "high",
+  "personal_data": "special",
+  "autonomy": "medium",
+  "decision_effect": "advisory",
+  "prudential_impact": "low",
+  "owner": "data-office",
+  "controls_in_place": [
+   "inventory",
+   "data_governance",
+   "human_oversight"
+  ]
+ },
+ {
+  "id": "AI-6",
+  "name": "Records classification",
+  "purpose": "Classify legacy documents against a file plan",
+  "scale": "high",
+  "personal_data": "personal",
+  "autonomy": "medium",
+  "decision_effect": "advisory",
+  "prudential_impact": "medium",
+  "owner": "records-office",
+  "controls_in_place": [
+   "inventory",
+   "data_governance",
+   "monitoring",
+   "human_oversight",
+   "record_keeping"
+  ]
+ }
+]

@@ -1,14 +1,14 @@
 {
-  "_note": "ILLUSTRATIVE retention schedule for a demo bank. Replace with the institution's approved file plan and legal-hold rules before any use.",
+  "_note": "EXAMPLE general-purpose retention schedule. Replace with your organisation's approved file plan and legal-hold rules; periods here are illustrative, not legal advice.",
   "classes": {
-    "loan_agreement":     {"retention_years": 10, "trigger": "event", "event": "account closure", "sensitivity": "Confidential", "keywords": ["loan agreement", "borrower", "principal amount", "interest rate", "repayment schedule"]},
-    "kyc_document":       {"retention_years": 5,  "trigger": "event", "event": "end of customer relationship", "sensitivity": "Highly Confidential", "keywords": ["know your customer", "kyc", "passport", "national id", "proof of address", "identity verification"]},
-    "board_minutes":      {"retention_years": null, "trigger": "permanent", "sensitivity": "Confidential", "keywords": ["minutes of the board", "board meeting", "resolved that", "directors present"]},
-    "customer_complaint": {"retention_years": 5,  "trigger": "event", "event": "complaint resolution", "sensitivity": "Confidential", "keywords": ["complaint", "dissatisfied", "complainant", "resolution offered"]},
-    "invoice":            {"retention_years": 7,  "trigger": "document_date", "sensitivity": "Internal", "keywords": ["invoice", "vat", "amount due", "purchase order"]},
-    "account_statement":  {"retention_years": 7,  "trigger": "document_date", "sensitivity": "Confidential", "keywords": ["statement of account", "opening balance", "closing balance", "transactions"]},
-    "policy_procedure":   {"retention_years": 3,  "trigger": "event", "event": "superseded", "sensitivity": "Internal", "keywords": ["standard operating procedure", "policy statement", "version history", "scope and purpose"]},
-    "correspondence":     {"retention_years": 2,  "trigger": "document_date", "sensitivity": "Internal", "keywords": ["dear", "kind regards", "subject:", "following up"]},
-    "unclassified":       {"retention_years": null, "trigger": "none", "sensitivity": "Internal", "keywords": []}
+    "contract_agreement":   {"retention_years": 10, "trigger": "event", "event": "contract end", "sensitivity": "Confidential", "keywords": ["agreement", "parties", "governing law", "term and termination", "payment schedule"]},
+    "identity_verification": {"retention_years": 5, "trigger": "event", "event": "end of customer relationship", "sensitivity": "Highly Confidential", "keywords": ["identity verification", "passport", "proof of address", "identity document", "verification completed"]},
+    "governance_minutes":   {"retention_years": null, "trigger": "permanent", "sensitivity": "Confidential", "keywords": ["minutes of the board", "board meeting", "resolved that", "directors present"]},
+    "customer_complaint":   {"retention_years": 5, "trigger": "event", "event": "complaint resolution", "sensitivity": "Confidential", "keywords": ["complaint", "dissatisfied", "complainant", "resolution offered"]},
+    "invoice":              {"retention_years": 7, "trigger": "document_date", "sensitivity": "Internal", "keywords": ["invoice", "vat", "amount due", "purchase order"]},
+    "financial_statement":  {"retention_years": 7, "trigger": "document_date", "sensitivity": "Confidential", "keywords": ["statement of account", "opening balance", "closing balance", "transactions"]},
+    "policy_procedure":     {"retention_years": 3, "trigger": "event", "event": "superseded", "sensitivity": "Internal", "keywords": ["standard operating procedure", "policy statement", "version history", "scope and purpose"]},
+    "correspondence":       {"retention_years": 2, "trigger": "document_date", "sensitivity": "Internal", "keywords": ["dear", "kind regards", "subject:", "following up"]},
+    "unclassified":         {"retention_years": null, "trigger": "none", "sensitivity": "Internal", "keywords": []}
   }
 }

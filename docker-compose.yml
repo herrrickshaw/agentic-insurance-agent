@@ -43,6 +43,8 @@ services:
       DEMO_SEED: "1"
       AI_PROVIDER: ${AI_PROVIDER:-mock}
       AI_TRACE_DB: /data/worker_traces.db
+      RECORDS_TARGET: ${RECORDS_TARGET:-sharepoint_online}
+      RECORDS_PII_REGIONS: ${RECORDS_PII_REGIONS:-US}
       DUE_IN: ${DUE_IN:-P30D}
       GRACE_IN: ${GRACE_IN:-P15D}
       PAYOUT_SLA: ${PAYOUT_SLA:-P5D}

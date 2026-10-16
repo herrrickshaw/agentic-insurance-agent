@@ -81,10 +81,10 @@ def test_each_action_sets_status_and_audit_detail(tmp_path):
     rows = [row(p, reasons="why") for p in ("a", "b", "c", "d", "e")]
     acts = [{"source_path": "a", "action": "approve"}, {"source_path": "b", "action": "exclude", "reason": "dup"},
             {"source_path": "c", "action": "dispose"}, {"source_path": "d", "action": "hold"},
-            {"source_path": "e", "action": "reclassify", "record_class": "board_minutes"}]
+            {"source_path": "e", "action": "reclassify", "record_class": "governance_minutes"}]
     assert review.apply_decisions(rows, acts, "zed", audit) == 5
     assert [r["status"] for r in rows] == ["migrate", "exclude", "dispose", "hold", "migrate"]
-    assert rows[4]["record_class"] == "board_minutes" and rows[4]["retention_label"] == "Permanent" and rows[4]["confidence"] == 1.0
+    assert rows[4]["record_class"] == "governance_minutes" and rows[4]["retention_label"] == "Permanent" and rows[4]["confidence"] == 1.0
     assert all("reviewed:" in r["reasons"] and "by zed" in r["reasons"] for r in rows) and rows[0]["reasons"].startswith("why; reviewed")
     e = audit.entries()
     assert [x["action"] for x in e] == ["decision:approve", "decision:exclude", "decision:dispose", "decision:hold", "decision:reclassify"]

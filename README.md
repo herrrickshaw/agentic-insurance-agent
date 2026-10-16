@@ -30,8 +30,8 @@ Cockpit/Tasklist: http://localhost:8080/camunda/app/ (create the first admin use
 - Single annual premium (no instalments), partial payment does not loop, fraud score is a placeholder, no auth on the engine REST, documents/notifications are log stubs.
 - Alternatives if you prefer: Flowable (BPMN/CMMN/DMN, Apache-2.0), Camunda 8 self-managed (Zeebe, source-available licence), Temporal (code-first, no diagrams).
 
-## GenAI layer (`ai/`) — tailored to the Lead AI Engineer JD
-Document AI, a tool-calling triage agent, guardrails, routing, tracing and regression evals, exposed as an async FastAPI service (`:8090`) that the claims BPMN calls. See `docs/JD_MAPPING.md` for the requirement-by-requirement status and honest gaps.
+## GenAI layer (`ai/`)
+Document AI, a tool-calling triage agent, guardrails, routing, tracing and regression evals, exposed as an async FastAPI service (`:8090`) that the claims BPMN calls. See `docs/CAPABILITY_MAP.md` for the requirement-by-requirement status and honest gaps.
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest -q ai/tests          # 8 tests
@@ -50,4 +50,7 @@ Customer ingestion and entity resolution, 360 profiles, portfolio exposure/VaR/c
 Backlog and acceptance criteria live as code (`docs/product/BACKLOG.yaml`) and are checked against the tests (`make trace`). Layers: unit, property-based (hypothesis), BDD (Gherkin), contract (OpenAPI snapshot), integration (live stack), AI evals, mutation testing. `make ci` runs lint, types, security, tests with an 85% coverage gate, evals and traceability. See `docs/process/ENGINEERING_PROCESS.md`, `docs/TEST_STRATEGY.md`, `docs/security/THREAT_MODEL.md`, `docs/adr/`.
 
 ## Records migration (`records/`)
-AI classification against a file plan, ROT analysis, PII sensitivity labels, SharePoint-safe paths, audited records-manager review and a readiness report: `python -m records.run <library> <out> --apply-recommended`, or the `records_migration` BPMN process. Retention periods in `records/fileplan.json` are illustrative.
+AI classification against a file plan, ROT analysis, PII sensitivity labels, target-safe paths (profiles in `records/targets.py`, e.g. SharePoint Online), audited records-manager review and a readiness report: `python -m records.run <library> <out> --apply-recommended`, or the `records_migration` BPMN process. The file plan (`records/fileplan.json`, override with `RECORDS_FILE_PLAN`), target (`RECORDS_TARGET`) and PII region packs (`RECORDS_PII_REGIONS`) are configuration; shipped values are illustrative examples.
+
+## Literature and governance
+`docs/literature/INNOVATION_REVIEW.md` reviews recent regulation, reporting and analytics in insurance with evidence grades and maps findings to this repo. Derived features: AI use-case inventory and tiering (`ai/governance.py`, `docs/governance/`), fairness metrics (`ai/fairness.py`), proxy-free pricing (`insurance/actuarial/fair_pricing.py`).

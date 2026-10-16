@@ -11,7 +11,7 @@ from records import evals, pipeline, synth
 @pytest.fixture(scope="module")
 def scored():
     d = Path(tempfile.mkdtemp()); truth = synth.build(d / "lib")
-    rows = pipeline.analyse(d / "lib", LLMClient(store=TraceStore(":memory:")))
+    rows = pipeline.analyse(d / "lib", LLMClient(store=TraceStore(":memory:")), **evals.ANALYSE_KW)
     return rows, evals.score(rows, truth)
 
 
@@ -27,9 +27,9 @@ def test_rot_detection(scored):
 
 
 @pytest.mark.story("REC-3")
-def test_spo_safe_paths_and_preflight(scored):
+def test_paths_are_made_safe_for_the_target_and_preflight_passes(scored):
     rows, s = scored
-    assert s["spo_recall"] == 1.0 and pipeline.preflight(rows) == []
+    assert s["path_recall"] == 1.0 and pipeline.preflight(rows, "sharepoint_online") == []
 
 
 @pytest.mark.story("REC-4")

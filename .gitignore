@@ -7,3 +7,9 @@ video/out/
 data/inbox/*.csv
 .DS_Store
 data/records_in/
+.coverage
+htmlcov/
+coverage.xml
+.mypy_cache/
+.ruff_cache/
+.hypothesis/

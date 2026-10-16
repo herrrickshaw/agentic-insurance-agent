@@ -24,6 +24,9 @@
 - `insurance/tests`: 9 tests. Actuarial results are checked against identities, not just "runs": `A_x = 1 − d·ä_x`, the annuity recursion, the equivalence principle, reserve = 0 at issue and at expiry, GLM recovers known coefficients from simulated data, chain-ladder recovers a known development pattern, simulated aggregate mean matches λ·E[X].
 - Live run on Operaton (3,240 synthetic rows): 3,142 accepted, 98 rejected with reasons, 182 auto-merged, 47 sent to a steward task, 2,915 golden profiles, portfolio review routed to the committee task by the DMN, non-smoker vs smoker term-life premiums priced from the table.
 
+## Regional profile
+Customer validation (`insurance/customers/validate.py`) implements an **India profile** (Aadhaar checksum, PAN, mobile, pincode) and the synthetic customers are Indian. For another market, replace the validators and field set; the ingestion, resolution and profile logic are market-neutral.
+
 ## Limits you must know about
 - **Mortality table is illustrative** (Gompertz–Makeham parameters I chose), not IALM 2012-14 or any experience table. Premiums are demonstrations of the method, not usable rates. Load a real table with `MortalityTable.from_qx`.
 - Underwriting multiples, occupation loadings and the 25× cover-to-income cap are placeholders.

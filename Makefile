@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: setup lint type sec test cov bdd prop contract eval trace mutation e2e models ci
+.PHONY: inventory setup lint type sec test cov bdd prop contract eval trace mutation e2e models ci
 setup:        ## create venv and install dev tools
 	python3 -m venv .venv && $(PY) -m pip install -q -r requirements-dev.txt
 lint:         ## style + bug-prone patterns
@@ -26,6 +26,8 @@ mutation:     ## do the tests notice broken logic? (slow, sampled)
 	$(PY) tools/mutation_smoke.py --per-module 30
 e2e:          ## needs `docker compose up`; runs the integration tests against the live engine
 	$(PY) -m pytest -m integration
+inventory:    ## regenerate docs/governance/AI_INVENTORY.md
+	$(PY) tools/ai_inventory.py
 models:       ## regenerate BPMN/DMN (CI fails if the committed files drift)
 	python3 tools/build_models.py
 ci: lint type sec cov eval trace   ## what the pipeline runs on every push

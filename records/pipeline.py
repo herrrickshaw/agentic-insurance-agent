@@ -1,4 +1,4 @@
-"""Analyse a legacy library into a migration manifest: classify, ROT, PII, retention, SPO fixes, review routing."""
+"""Analyse a legacy library into a migration manifest: classify, ROT, PII, retention, path fixes, review routing."""
 import asyncio
 import csv
 import json
@@ -8,20 +8,23 @@ from pathlib import Path
 
 from . import inventory, pii, rot
 from .classify import PLAN, classify_many
+from .targets import resolve
 
 CONF_REVIEW = 0.7
 SENS_ORDER = ["Internal", "Confidential", "Highly Confidential"]
 
 
-def sanitise(rel_path):
-    """Make a SharePoint-safe target path (replace illegal chars, trim, cap length) without changing the tree."""
-    parts = [re.sub(r'["*:<>?/\\|#%]', "-", p).strip().rstrip(".") or "_" for p in Path(rel_path).parts]
-    parts = [re.sub("_vti_", "vti-", p, flags=re.I) for p in parts]
-    parts = ["_" + p if p.lower().split(".")[0] in inventory.FORBIDDEN_NAMES or p.lower() in inventory.FORBIDDEN_NAMES else p for p in parts]
+def sanitise(rel_path, target=None):
+    """Make a target-safe path (replace illegal chars, rename reserved names, cap length) without changing the tree."""
+    prof = resolve(target)
+    parts = [prof.illegal.sub("-", p).strip().rstrip(".") or "_" for p in Path(rel_path).parts]
+    for sub in prof.reserved_substrings:
+        parts = [re.sub(re.escape(sub), sub.strip("_") + "-", p, flags=re.I) for p in parts]
+    parts = ["_" + p if p.lower().split(".")[0] in prof.reserved_names or p.lower() in prof.reserved_names else p for p in parts]
     out = "/".join(parts)
-    if len(out) > inventory.MAX_PATH:
+    if len(out) > prof.max_path:
         stem, ext = Path(parts[-1]).stem, Path(parts[-1]).suffix
-        keep = inventory.MAX_PATH - len("/".join(parts[:-1])) - len(ext) - 2
+        keep = prof.max_path - len("/".join(parts[:-1])) - len(ext) - 2
         out = "/".join(parts[:-1] + [stem[:max(keep, 8)] + ext])
     return out
 
@@ -43,13 +46,14 @@ def sensitivity_for(cls, found):
     """Class default, raised when PII is detected: identifiers/financial numbers -> Highly Confidential."""
     sens = PLAN[cls]["sensitivity"]
     if found and SENS_ORDER.index(sens) < 2:
-        sens = "Highly Confidential" if set(found) & {"national_id_IS", "iban", "card"} else "Confidential"
+        sens = "Highly Confidential" if set(found) & pii.HIGH_SENSITIVITY else "Confidential"
     return sens
 
 
-def analyse(root, llm, today=None, cache=None, max_llm_calls=None):
+def analyse(root, llm, today=None, cache=None, max_llm_calls=None, target=None, pii_regions=None):
+    prof = resolve(target)
     today = today or date.today().isoformat()
-    items = list(inventory.scan(root))
+    items = list(inventory.scan(root, profile=prof))
     dups, near = rot.find_exact_duplicates(items), rot.find_near_duplicates(items)
     need = [i for i in items if not rot.is_trivial(i) and i.rel_path not in dups]       # don't pay to classify what is excluded anyway
     results = asyncio.run(classify_many(llm, need, cache=cache, max_calls=max_llm_calls))
@@ -57,9 +61,9 @@ def analyse(root, llm, today=None, cache=None, max_llm_calls=None):
     for it in items:
         row = {"source_path": it.rel_path, "size": it.size, "sha256": it.sha256[:16], "status": "migrate", "reasons": [],
                "record_class": "", "confidence": "", "document_date": "", "entity": "", "retention_label": "",
-               "disposition_date": "", "sensitivity": "", "pii": "", "target_path": sanitise(it.rel_path), "model": ""}
-        if it.spo_issues:
-            row["reasons"].append("SPO fixed: " + "; ".join(it.spo_issues))
+               "disposition_date": "", "sensitivity": "", "pii": "", "target_path": sanitise(it.rel_path, prof), "model": ""}
+        if it.path_issues:
+            row["reasons"].append("path fixed: " + "; ".join(it.path_issues))
         if rot.is_trivial(it):
             row.update(status="exclude"); row["reasons"].append("trivial (temp/empty/tiny)")
         elif it.rel_path in dups:
@@ -77,7 +81,7 @@ def analyse(root, llm, today=None, cache=None, max_llm_calls=None):
                 else:
                     cls = rc.record_class
                     label, disp, trig = retention(cls, rc.document_date)
-                    found = pii.detect(it.text)
+                    found = pii.detect(it.text, pii_regions)
                     sens = sensitivity_for(cls, found)
                     row.update(record_class=cls, confidence=rc.confidence, document_date=rc.document_date, entity=rc.entity,
                                retention_label=label, disposition_date=disp or "", sensitivity=sens, model=meta.get("model", ""),
@@ -95,14 +99,15 @@ def analyse(root, llm, today=None, cache=None, max_llm_calls=None):
     return rows
 
 
-def preflight(rows):
-    """Block the manifest if anything that would fail in SharePoint Online or lose governance slipped through."""
+def preflight(rows, target=None):
+    """Block the manifest if anything the target platform would reject, or any item without governance labels, slipped through."""
+    prof = resolve(target)
     errs, seen = [], {}
     for r in rows:
         if r["status"] != "migrate":
             continue
-        if inventory.spo_issues(r["target_path"]):
-            errs.append(f"{r['target_path']}: {inventory.spo_issues(r['target_path'])}")
+        if inventory.path_issues(r["target_path"], prof):
+            errs.append(f"{r['target_path']}: {inventory.path_issues(r['target_path'], prof)}")
         if r["target_path"].lower() in seen:
             errs.append(f"duplicate target path {r['target_path']} (from {seen[r['target_path'].lower()]} and {r['source_path']})")
         seen[r["target_path"].lower()] = r["source_path"]

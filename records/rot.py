@@ -45,7 +45,9 @@ def find_near_duplicates(items, threshold=0.9, min_chars=60):
         for i in range(len(group)):
             for j in range(i + 1, len(group)):
                 if group[i][2] != group[j][2] and jaccard(group[i][1], group[j][1]) >= threshold:
-                    out.setdefault(group[j][0], group[i][0])
+                    a, b = group[i][0], group[j][0]
+                    dup, keep = (a, b) if _junk(a) > _junk(b) else (b, a)    # flag the draft/copy, keep the primary-tree file
+                    out.setdefault(dup, keep)
     return out
 
 

@@ -42,10 +42,10 @@ stories:
    ac: ["Class accuracy at least 95% on the labelled set", "Low confidence goes to review"]}
 - {id: REC-2, epic: Records, title: Find redundant and trivial content before migrating, priority: Must, status: done, value: 8, tc: 5, rr: 5, size: 3,
    ac: ["Exact duplicates keep the primary-tree copy", "Near duplicates go to review"]}
-- {id: REC-3, epic: Records, title: Make paths SharePoint-safe, priority: Must, status: done, value: 7, tc: 6, rr: 8, size: 2,
-   ac: ["Illegal characters and long paths are fixed in the target path", "Preflight blocks anything unsafe"]}
+- {id: REC-3, epic: Records, title: Make paths safe for the target platform, priority: Must, status: done, value: 7, tc: 6, rr: 8, size: 2,
+   ac: ["Illegal characters, reserved names and long paths are fixed per target profile", "Preflight blocks anything unsafe"]}
 - {id: REC-4, epic: Records, title: Label sensitivity from detected PII, priority: Must, status: done, value: 8, tc: 5, rr: 9, size: 2,
-   ac: ["Identifiers and IBANs raise the label to Highly Confidential"]}
+   ac: ["Detected identifiers and IBANs raise the label to Highly Confidential"]}
 - {id: REC-5, epic: Records, title: Records manager decisions are validated and applied, priority: Must, status: done, value: 9, tc: 6, rr: 8, size: 5,
    ac: ["Unclassified items cannot be approved", "Reclassify recomputes retention and sensitivity", "Invalid decisions leave no audit entry"]}
 - {id: REC-6, epic: Records, title: Tamper-evident audit trail, priority: Must, status: done, value: 8, tc: 5, rr: 10, size: 2,
@@ -66,3 +66,23 @@ stories:
    ac: ["Scanned PDFs yield text with page references"]}
 - {id: CUS-4, epic: Customers, title: Steward review UI with pair comparison, priority: Could, status: backlog, value: 5, tc: 2, rr: 3, size: 5,
    ac: ["Steward sees both records side by side"]}
+- {id: GOV-1, epic: AI governance, title: Inventory AI use cases and tier them proportionately, priority: Must, status: done, value: 8, tc: 7, rr: 9, size: 3,
+   ac: ["Low-impact use cases get minimal controls and high-impact ones the full set", "Life/health underwriting or pricing is flagged for AI Act review while fraud detection is not", "The committed inventory matches the generator"]}
+- {id: GOV-2, epic: AI governance, title: Screen outcomes with group-fairness metrics, priority: Must, status: done, value: 8, tc: 6, rr: 9, size: 3,
+   ac: ["Demographic parity, disparate impact, equal opportunity and calibration gaps are computed", "Metrics are invariant to group relabelling and bounded"]}
+- {id: PRC-1, epic: Portfolio, title: Price without proxy discrimination by marginalisation, priority: Should, status: done, value: 6, tc: 4, rr: 8, size: 3,
+   ac: ["Price averages the protected attribute out of the best-estimate model", "A proxy gap is reported when a rating factor predicts the protected attribute"]}
+- {id: GOV-3, epic: AI governance, title: Annex-style record keeping per higher-risk AI system (reasons, data, versions, tests, incidents), priority: Should, status: ready, value: 7, tc: 5, rr: 8, size: 3,
+   ac: ["Each enhanced-tier use case has a reviewable record pack generated from the repo"]}
+- {id: GOV-4, epic: AI governance, title: Run fairness screening on real underwriting decisions with the protected attribute held out of the model, priority: Must, status: blocked, value: 8, tc: 6, rr: 9, size: 5,
+   ac: ["Monthly report per line of business with flags and trend"]}
+- {id: AIP-5, epic: AI platform, title: Extraction benchmark on realistic claim forms with amount-grounding and calibration metrics, priority: Must, status: ready, value: 9, tc: 6, rr: 9, size: 5,
+   ac: ["Report the share of extracted amounts that cannot be matched to source text", "Report stated confidence versus correctness"]}
+- {id: RPT-1, epic: Reporting, title: Lineage from every reported figure to source records and the test that checks it, priority: Should, status: backlog, value: 7, tc: 5, rr: 7, size: 5,
+   ac: ["A reported number can be traced to inputs, code version and approvals"]}
+- {id: RPT-2, epic: Reporting, title: Climate and natural-catastrophe scenario stress on the portfolio, priority: Should, status: backlog, value: 7, tc: 4, rr: 7, size: 5,
+   ac: ["At least two scenarios, physical and transition, with documented materiality assessment"]}
+- {id: RPT-3, epic: Reporting, title: Contract-service-margin style profitability view for long-duration business, priority: Could, status: backlog, value: 5, tc: 3, rr: 4, size: 8,
+   ac: ["Expected profit recognition pattern reconciles to the actuarial cash flows"]}
+- {id: PRC-2, epic: Portfolio, title: Consent-aware telematics rating inputs, priority: Could, status: backlog, value: 4, tc: 3, rr: 5, size: 5,
+   ac: ["Enrolment is voluntary and consent is recorded before any telematics feature is used"]}

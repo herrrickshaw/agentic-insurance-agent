@@ -2,9 +2,8 @@
 import hashlib
 import json
 import sqlite3
-from pathlib import Path
 
-PLAN_FILE = Path(__file__).parent / "fileplan.json"
+from .classify import PLAN_FILE
 
 
 def current_plan_version():

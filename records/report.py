@@ -15,7 +15,7 @@ def readiness(rows, audit):
     L = ["# Migration readiness", "", f"**Verdict: {'READY' if ready else 'NOT READY'}**", ""]
     L += [f"- Files analysed: {len(rows)}"] + [f"- {k}: {v}" for k, v in sorted(st.items())]
     L += ["", "## Gates", f"- Review queue empty: {'yes' if not st.get('review') else 'NO (' + str(st['review']) + ' open)'}",
-          f"- Preflight (SharePoint constraints, labels): {'pass' if not pf else f'FAIL ({len(pf)} errors)'}",
+          f"- Preflight (target-platform path rules, labels): {'pass' if not pf else f'FAIL ({len(pf)} errors)'}",
           f"- Audit chain intact: {'yes' if ok else f'NO (first bad entry {bad})'}; head {audit.head()[:16]}", "",
           "## Migrating by record class"] + [f"- {k}: {v}" for k, v in cls.most_common()]
     L += ["", "## Migrating by sensitivity"] + [f"- {k}: {v}" for k, v in sens.most_common()]

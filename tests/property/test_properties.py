@@ -12,6 +12,7 @@ from insurance.actuarial import reserving
 from insurance.customers import resolve, validate
 from records import inventory, pipeline
 from records.audit import AuditLog
+from records.targets import TARGETS
 
 pytestmark = pytest.mark.property
 seg = st.one_of(st.text(min_size=1, max_size=60), st.sampled_from(["con", "AUX", "nul.txt", "Forms", "_vti_bin", "desktop.ini", "Thumbs.db", ".", "..", " a ", "x."]))
@@ -19,12 +20,13 @@ paths = st.lists(seg, min_size=1, max_size=12).map("/".join)
 
 
 @pytest.mark.story("REC-3")
-@given(paths)
-def test_sanitised_paths_are_always_spo_safe(p):
-    out = pipeline.sanitise(p)
-    assert inventory.spo_issues(out) == []
-    assert len(out) <= inventory.MAX_PATH
-    assert pipeline.sanitise(out) == out                       # idempotent
+@given(paths, st.sampled_from(sorted(TARGETS)))
+def test_sanitised_paths_are_always_safe_for_the_target(p, target):
+    prof = TARGETS[target]
+    out = pipeline.sanitise(p, target)
+    assert inventory.path_issues(out, prof) == []
+    assert len(out) <= prof.max_path
+    assert pipeline.sanitise(out, target) == out               # idempotent
 
 
 @pytest.mark.story("REC-6")

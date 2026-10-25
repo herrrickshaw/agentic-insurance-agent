@@ -1,6 +1,5 @@
 """Regression tests for the 2026-10-25 static sweep (bandit/semgrep S306). Offline; writes only to tmp_path."""
 import importlib.util
-import os
 import subprocess
 import tempfile
 from pathlib import Path

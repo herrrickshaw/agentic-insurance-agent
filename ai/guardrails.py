@@ -3,10 +3,10 @@ import re
 from dataclasses import dataclass, field
 from datetime import date
 
-PII = {
+PII = {                     # order matters: CARD before AADHAAR, else a spaced 16-digit card is cut at 12 digits
+    "CARD": re.compile(r"\b\d(?:[ -]?\d){12,15}\b"),
     "AADHAAR": re.compile(r"\b\d{4}\s?\d{4}\s?\d{4}\b"),
     "PAN": re.compile(r"\b[A-Z]{5}\d{4}[A-Z]\b"),
-    "CARD": re.compile(r"\b(?:\d[ -]?){13,16}\b"),
     "EMAIL": re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.]+\b"),
     "PHONE": re.compile(r"(?<!\d)(?:\+91[- ]?)?[6-9]\d{9}(?!\d)"),
 }

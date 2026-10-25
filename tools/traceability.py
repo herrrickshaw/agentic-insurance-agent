@@ -19,10 +19,14 @@ ROOT = Path(__file__).resolve().parent.parent
 def main():
     backlog = yaml.safe_load((ROOT / "docs/product/BACKLOG.yaml").read_text())["stories"]
     ids = {s["id"] for s in backlog}
-    out = tempfile.mktemp(suffix=".json")
+    fd, out = tempfile.mkstemp(suffix=".json")   # created atomically (mktemp only returned a name: B306)
+    os.close(fd)
     env = {**os.environ, "TRACE_OUT": out}
-    subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q"], cwd=ROOT, env=env, capture_output=True, check=False)
-    trace = json.loads(Path(out).read_text())
+    try:
+        subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q"], cwd=ROOT, env=env, capture_output=True, check=False)
+        trace = json.loads(Path(out).read_text())
+    finally:
+        Path(out).unlink(missing_ok=True)
     errors, warns = [], []
     for sid in trace:
         if sid not in ids:

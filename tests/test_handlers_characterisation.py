@@ -152,3 +152,25 @@ def test_runner_survives_engine_outage(con, monkeypatch):
     with pytest.raises(KeyboardInterrupt):
         runner.main()
     assert slept == [3]
+
+
+def test_ai_handlers_accept_an_injected_client(con):
+    def fake(path, body):
+        return {"/v1/documents/process": {"doc_type": "invoice", "issues": ["x"], "injection_flags": ["ignore previous"]},
+                "/v1/documents/summarize": {"summary": "s"},
+                "/v1/claims/triage": {"route": "siu", "confidence": 0.9, "rationale": "r", "trace_id": "t9"}}[path]
+    d = h.ai_process_documents(con, {"claimNumber": "C", "claimDocuments": '[{"text": "a"}]'}, ai=fake)
+    assert d == {"docsComplete": False, "docIssues": "x; injection flags: ['ignore previous']", "docTypes": "invoice", "claimSummary": "s"}
+    t = h.ai_triage(con, {"claimNumber": "C", "policyNumber": "P", "claimAmount": 5}, ai=fake)
+    assert t == {"aiRoute": "siu", "aiRationale": "r", "aiTraceId": "t9"}
+
+
+def test_records_analyse_accepts_an_injected_llm(con, tmp_path, monkeypatch):
+    from ai.client import LLMClient
+    from records import synth
+    monkeypatch.setenv("AI_PROVIDER", "mock")
+    monkeypatch.setenv("RECORDS_OUT", str(tmp_path / "out"))
+    src = tmp_path / "lib"
+    synth.build(src, n=30)
+    out = h.records_analyse(con, {"sourceDir": str(src), "batchLabel": "b"}, llm=LLMClient())
+    assert out["filesAnalysed"] > 0

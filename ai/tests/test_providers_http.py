@@ -96,7 +96,7 @@ def test_mock_provider_tasks():
     m = MockProvider()
     run = lambda **kw: asyncio.run(m.complete(model="mock", **kw))
     cls = json.loads(run(messages=[{"role": "user", "content": "Claim Form\nClaimant: A\nDate of loss: 2026-01-01"}], meta={"task": "classify"}).text)
-    assert cls["doc_type"] == "claim_form" and cls["confidence"] == pytest.approx(0.97)
+    assert cls["doc_type"] == "claim_form" and cls["confidence"] == pytest.approx(0.95)
     assert json.loads(run(messages=[{"role": "user", "content": "nothing"}], meta={"task": "classify"}).text)["doc_type"] == "other"
     ext = json.loads(run(messages=[{"role": "user", "content": "Invoice No: INV-9\nTotal amount: Rs. 1,200"}],
                          meta={"task": "extract", "doc_type": "invoice"}).text)

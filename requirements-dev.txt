@@ -5,3 +5,10 @@ httpx
 pytest
 psycopg[binary]
 numpy
+hypothesis
+pytest-bdd
+pytest-cov
+ruff
+mypy
+bandit
+pyyaml

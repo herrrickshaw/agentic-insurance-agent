@@ -3,7 +3,7 @@ import json
 import os
 import re
 import uuid
-from typing import Protocol
+from typing import Any, Protocol
 
 import httpx
 
@@ -16,6 +16,15 @@ class Provider(Protocol):
     async def complete(self, *, model: str, messages: list[Message], tools: list[ToolSpec] | None = None,
                        json_schema: dict | None = None, temperature: float = 0.0, max_tokens: int = 1024,
                        meta: dict | None = None) -> LLMResponse: ...
+
+
+async def _post_json(url: str, body: dict, headers: dict, timeout: float, transport: httpx.AsyncBaseTransport | None) -> dict:
+    """POST JSON and return the decoded reply; ``transport`` lets tests substitute an in-process httpx transport."""
+    kwargs: dict[str, Any] = {"transport": transport} if transport is not None else {}
+    async with httpx.AsyncClient(timeout=timeout, **kwargs) as c:
+        r = await c.post(url, json=body, headers=headers)
+        r.raise_for_status()
+        return r.json()
 
 
 def _oa_messages(messages):
@@ -38,8 +47,9 @@ def _oa_tools(tools):
 class OpenAICompatProvider:
     """OpenAI and Azure OpenAI (Azure AI Foundry deployments use the same chat-completions shape)."""
 
-    def __init__(self, name="openai", base_url=None, api_key=None, azure_api_version=None, timeout=60.0):
+    def __init__(self, name="openai", base_url=None, api_key=None, azure_api_version=None, timeout=60.0, transport=None):
         self.name = name
+        self.transport = transport
         self.base_url = (base_url or "https://api.openai.com/v1").rstrip("/")
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
         self.azure_api_version = azure_api_version
@@ -59,10 +69,7 @@ class OpenAICompatProvider:
         else:
             url, headers = f"{self.base_url}/chat/completions", {"Authorization": f"Bearer {self.api_key}"}
             body["model"] = model
-        async with httpx.AsyncClient(timeout=self.timeout) as c:
-            r = await c.post(url, json=body, headers=headers)
-            r.raise_for_status()
-            d = r.json()
+        d = await _post_json(url, body, headers, self.timeout, self.transport)
         msg = d["choices"][0]["message"]
         calls = [ToolCall(tc["id"], tc["function"]["name"], json.loads(tc["function"]["arguments"] or "{}"))
                  for tc in msg.get("tool_calls") or []]
@@ -74,7 +81,8 @@ class OpenAICompatProvider:
 class AnthropicProvider:
     name = "anthropic"
 
-    def __init__(self, api_key=None, base_url="https://api.anthropic.com", timeout=60.0):
+    def __init__(self, api_key=None, base_url="https://api.anthropic.com", timeout=60.0, transport=None):
+        self.transport = transport
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
         self.base_url, self.timeout = base_url.rstrip("/"), timeout
 
@@ -107,11 +115,8 @@ class AnthropicProvider:
         if tools:
             body["tools"] = [{"name": t.name, "description": t.description, "input_schema": t.parameters}
                              for t in tools]
-        async with httpx.AsyncClient(timeout=self.timeout) as c:
-            r = await c.post(f"{self.base_url}/v1/messages", json=body,
-                             headers={"x-api-key": self.api_key, "anthropic-version": "2023-06-01"})
-            r.raise_for_status()
-            d = r.json()
+        d = await _post_json(f"{self.base_url}/v1/messages", body,
+                             {"x-api-key": self.api_key, "anthropic-version": "2023-06-01"}, self.timeout, self.transport)
         text = "".join(b["text"] for b in d["content"] if b["type"] == "text")
         calls = [ToolCall(b["id"], b["name"], b["input"]) for b in d["content"] if b["type"] == "tool_use"]
         u = d.get("usage", {})

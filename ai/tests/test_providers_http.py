@@ -137,3 +137,11 @@ def test_build_providers_follow_environment(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
     p = client_mod.build_providers()
     assert set(p) == {"mock", "azure", "openai", "anthropic"} and p["azure"].azure_api_version == "2024-10-21"
+
+
+def test_injected_transport_and_env_need_no_monkeypatching():
+    handler = httpx.MockTransport(lambda r: httpx.Response(200, json={"content": [{"type": "text", "text": "hi"}]}))
+    r = asyncio.run(AnthropicProvider(api_key="k", transport=handler).complete(model="m", messages=[{"role": "user", "content": "q"}]))
+    assert r.text == "hi"
+    assert [x.provider for x in client_mod.default_routes({"ANTHROPIC_API_KEY": "k"})["classify"]] == ["anthropic"]
+    assert set(client_mod.build_providers({"OPENAI_API_KEY": "k"})) == {"mock", "openai"}

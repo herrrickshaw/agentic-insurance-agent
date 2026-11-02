@@ -3,7 +3,9 @@ import json
 import os
 import time
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -20,35 +22,41 @@ class Route:
     max_latency_ms: float = 30000
 
 
-def default_routes() -> dict[str, list[Route]]:
+TASKS = ("classify", "summarize", "extract", "agent", "records_classify")
+
+
+def default_routes(env: Mapping[str, str] | None = None) -> dict[str, list[Route]]:
     """Task -> ordered candidates. Cheap/fast model first for easy tasks, strong model first for hard ones;
-    each list ends with a different provider for reliability. Deployment names come from the environment."""
-    az_small, az_large = os.environ.get("AZURE_DEPLOY_SMALL"), os.environ.get("AZURE_DEPLOY_LARGE")
-    claude = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5-5")
-    if os.environ.get("AZURE_OPENAI_ENDPOINT") and az_small and az_large:
+    each list ends with a different provider for reliability. Deployment names come from ``env`` (default os.environ)."""
+    env = os.environ if env is None else env
+    az_small, az_large = env.get("AZURE_DEPLOY_SMALL"), env.get("AZURE_DEPLOY_LARGE")
+    claude = env.get("ANTHROPIC_MODEL", "claude-sonnet-5-5")
+    if env.get("AZURE_OPENAI_ENDPOINT") and az_small and az_large:
         r = {"classify": [Route("azure", az_small), Route("azure", az_large)],
              "summarize": [Route("azure", az_small), Route("azure", az_large)],
              "extract": [Route("azure", az_large), Route("anthropic", claude)],
              "agent": [Route("azure", az_large), Route("anthropic", claude)],
              "records_classify": [Route("azure", az_small), Route("azure", az_large)]}
-        if not os.environ.get("ANTHROPIC_API_KEY"):
+        if not env.get("ANTHROPIC_API_KEY"):
             r = {k: [x for x in v if x.provider != "anthropic"] for k, v in r.items()}
         return r
-    if os.environ.get("ANTHROPIC_API_KEY") and os.environ.get("AI_PROVIDER") != "mock":
-        return {t: [Route("anthropic", claude)] for t in ("classify", "summarize", "extract", "agent", "records_classify")}
-    return {t: [Route("mock", "mock-heuristic-1")] for t in ("classify", "summarize", "extract", "agent", "records_classify")}
+    if env.get("ANTHROPIC_API_KEY") and env.get("AI_PROVIDER") != "mock":
+        return {t: [Route("anthropic", claude)] for t in TASKS}
+    return {t: [Route("mock", "mock-heuristic-1")] for t in TASKS}
 
 
-def build_providers():
-    p = {"mock": MockProvider()}
-    if os.environ.get("AZURE_OPENAI_ENDPOINT"):
-        p["azure"] = OpenAICompatProvider("azure", os.environ["AZURE_OPENAI_ENDPOINT"],
-                                          os.environ.get("AZURE_OPENAI_API_KEY"),
-                                          os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21"))
-    if os.environ.get("OPENAI_API_KEY"):
-        p["openai"] = OpenAICompatProvider("openai")
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        p["anthropic"] = AnthropicProvider()
+def build_providers(env: Mapping[str, str] | None = None):
+    """Instantiate the providers whose credentials are present in ``env`` (default os.environ); mock is always available."""
+    env = os.environ if env is None else env
+    p: dict[str, Any] = {"mock": MockProvider()}
+    if env.get("AZURE_OPENAI_ENDPOINT"):
+        p["azure"] = OpenAICompatProvider("azure", env["AZURE_OPENAI_ENDPOINT"],
+                                          env.get("AZURE_OPENAI_API_KEY"),
+                                          env.get("AZURE_OPENAI_API_VERSION", "2024-10-21"))
+    if env.get("OPENAI_API_KEY"):
+        p["openai"] = OpenAICompatProvider("openai", api_key=env["OPENAI_API_KEY"])
+    if env.get("ANTHROPIC_API_KEY"):
+        p["anthropic"] = AnthropicProvider(env["ANTHROPIC_API_KEY"])
     return p
 
 

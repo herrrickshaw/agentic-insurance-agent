@@ -1,11 +1,10 @@
 """Long-polling external-task worker for Operaton / Camunda 7 REST (/engine-rest). Stdlib only."""
-import json
 import logging
 import os
 import time
-import urllib.request
 
 from handlers import HANDLERS
+from http_json import post_json
 from ledger import connect
 
 ENGINE = os.environ.get("ENGINE_URL", "http://localhost:8080/engine-rest")
@@ -14,12 +13,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
 
 def call(path, body):
-    if not ENGINE.startswith(("http://", "https://")):
-        raise ValueError("ENGINE_URL must be http(s)")
-    req = urllib.request.Request(f"{ENGINE}{path}", json.dumps(body).encode(), {"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=60) as r:  # nosec B310 - scheme validated above
-        data = r.read()
-        return json.loads(data) if data else None
+    """POST ``body`` to the engine REST API at ``ENGINE + path``; return decoded JSON or None."""
+    return post_json(ENGINE, path, body, timeout=60, env_name="ENGINE_URL", allow_empty=True)
 
 
 def typed(value):

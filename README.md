@@ -1,56 +1,85 @@
-# Open-source insurance workflow (Bizagi-style BPMN orchestration)
+# Open-source insurance workflow: BPMN/DMN orchestration with a GenAI layer
 
-| Bizagi concept | Here |
-|---|---|
-| Process modeler | BPMN 2.0 + DMN 1.3 files in `models/` (open in bpmn.io / Camunda Modeler) |
-| Engine, Work Portal, monitoring | [Operaton](https://operaton.org) (Apache-2.0 Camunda 7 fork): engine, Tasklist, Cockpit, Admin |
-| Integrations / business rules | Python external-task workers (`workers/`), DMN decision tables |
-| Data model | SQLite ledger (`workers/ledger.py`): policies, claims, payments, events |
+An open-source equivalent of the orchestration layer of a commercial BPM suite (Bizagi, Appian, Pega, Nintex, Creatio, Guidewire), applied to insurance. BPMN 2.0 / DMN 1.3 models run on [Operaton](https://operaton.org) (Apache-2.0 Camunda 7 fork); Python external-task workers hold the business logic and write a SQLite ledger; an async FastAPI service adds document AI, a tool-calling claims-triage agent, guardrails, routing, tracing and regression evals. It also contains customer-data, portfolio-risk and actuarial modules and a records-migration pipeline. It produces policies, claims and payments in the ledger, triage recommendations, portfolio metrics and records manifests/readiness reports.
 
-## Processes
-1. **policy_issuance**: validate → underwriting DMN (decline / refer / auto-approve) → manual underwriting user task → premium → issue policy → documents → calls
-2. **premium_collection** (payment tracking): invoice → await `PaymentReceived` message vs due-date timer → reminder → grace timer → lapse, or reconcile
-3. **claim_handling**: verify coverage → fraud score → triage DMN (fast-track / adjuster / SIU) → settle (creates payout) → await `PayoutConfirmed` vs SLA timer → escalate → close
+> Status: active, demo-grade. Synthetic and illustrative data only (including the mortality table and the records file plan); not production insurance software and not actuarial advice.
 
-Payments are tracked in the `payments` table (`kind` = premium | payout; status invoiced/paid/partial/overdue, pending/escalated/paid). Bank/PSP webhooks should call `POST /engine-rest/message` with `PaymentReceived` (key `policyNumber`) or `PayoutConfirmed` (key `claimNumber`).
+## What it does
+- Runs three core processes: `policy_issuance`, `premium_collection` (payment tracking), `claim_handling` (coverage, fraud score, triage DMN, settlement, payout SLA).
+- Adds `customer_onboarding`, `portfolio_risk_review` and `records_migration` processes.
+- Exposes a GenAI service on `:8090`: document classification/extraction/summary, claims triage agent, prompt-injection and PII guardrails, model routing with fallback, trace store, eval gate.
+- Computes term-life premiums by the equivalence principle, plus reserving (chain ladder, Bornhuetter-Ferguson), GLM, credibility, proxy-free pricing, portfolio VaR/concentration.
+- Classifies a document library against a file plan (ROT analysis, PII labels, target-safe paths, audited review, readiness report).
+- Ships an engineering system: backlog-as-code with traceability, unit/property/BDD/contract tests, AI evals, mutation smoke test.
 
-## Run
+## Quick start
 ```bash
-python3 tools/build_models.py        # regenerate models (already committed)
-python3 -I tests/test_handlers.py    # worker logic tests, no containers needed
-DUE_IN=PT2M GRACE_IN=PT2M PAYOUT_SLA=PT2M docker compose up --build   # or podman compose
-python3 scripts/demo.py              # deploys models, runs a policy + claim
-```
-Cockpit/Tasklist: http://localhost:8080/camunda/app/ (create the first admin user on first visit; refer/SIU cases appear as tasks for groups `underwriters`, `adjusters`, `siu`).
-
-## Status / known gaps
-- Verified live (Operaton 2.1.5 via Podman, 2026-10-16): models deploy, DMN rules route correctly, policy issue → invoice → `PaymentReceived` → reconcile, claim → triage → adjuster task → settle → `PayoutConfirmed` all update the ledger. The timer/lapse and escalation branches have not been exercised yet.
-- The `operaton/operaton` image runs the "run" distribution on embedded H2 with demo data; the `DB_*` env vars in compose did not switch it to Postgres, so engine state is not durable yet.
-- Commercial counterparts (Appian, Pega, Nintex, Creatio, Guidewire) cover the same ground; this repo is the open-source equivalent of the orchestration layer only, not their prebuilt insurance connectors.
-- Single annual premium (no instalments), partial payment does not loop, fraud score is a placeholder, no auth on the engine REST, documents/notifications are log stubs.
-- Alternatives if you prefer: Flowable (BPMN/CMMN/DMN, Apache-2.0), Camunda 8 self-managed (Zeebe, source-available licence), Temporal (code-first, no diagrams).
-
-## GenAI layer (`ai/`)
-Document AI, a tool-calling triage agent, guardrails, routing, tracing and regression evals, exposed as an async FastAPI service (`:8090`) that the claims BPMN calls. See `docs/CAPABILITY_MAP.md` for the requirement-by-requirement status and honest gaps.
-```bash
+git clone https://github.com/<owner>/agentic-insurance-agent.git
+cd agentic-insurance-agent
 python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m pytest -q ai/tests          # 8 tests
-AI_PROVIDER=mock .venv/bin/python -m ai.evals.run_evals   # regression gate (exit 1 on regression)
+.venv/bin/python -m pytest -q                      # unit, property, BDD, contract; no containers needed
+AI_PROVIDER=mock .venv/bin/python -m ai.evals.run_evals   # offline AI regression gate (exit 1 on regression)
 ```
-Real models: set `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_DEPLOY_SMALL`, `AZURE_DEPLOY_LARGE` and/or `ANTHROPIC_API_KEY` (adapters are written but untested against live APIs). Prices for cost tracking: `AI_PRICES="model=in:out,..."` (USD per 1M tokens).
+Full stack (engine, workers, AI service, Postgres): `DUE_IN=PT2M GRACE_IN=PT2M PAYOUT_SLA=PT2M docker compose up --build` (or `podman compose`), then `python3 scripts/demo.py` to deploy the models and run a policy and a claim. Cockpit/Tasklist: http://localhost:8080/camunda/app/ (create the first admin user on first visit; refer/SIU cases appear as tasks for groups `underwriters`, `adjusters`, `siu`).
 
-## Customer data, portfolio risk and actuarial maths (`insurance/`)
-Customer ingestion and entity resolution, 360 profiles, portfolio exposure/VaR/concentration, reserving, and life/GLM actuarial maths, wired into two new BPMN processes (`customer_onboarding`, `portfolio_risk_review`) and the policy flow. See `docs/ACTUARIAL_AND_PORTFOLIO.md` (including limits: illustrative mortality table, synthetic data).
+## How it works
+```
+BPMN/DMN (models/) --deployed to--> Operaton engine --external tasks--> workers/runner.py
+                                                                          |  topic -> HANDLERS
+        workers/handlers_policy.py   policy issue, premium, payments      v
+        workers/handlers_claims.py   coverage, fraud score, settle   SQLite ledger (workers/ledger.py)
+        workers/handlers_data.py     customers, portfolio, records
+        workers/handlers.py          registry + AI handlers --HTTP--> ai/service.py (FastAPI :8090)
+```
+- `tools/build_models.py` generates the BPMN/DMN files; CI fails if the committed `models/` drift from it.
+- Handlers are `(con, vars) -> dict`. `workers/http_json.py` is the single stdlib JSON POST used for the engine REST API and the AI service. The AI handlers take an optional injectable `ai` client and `records_analyse` an optional `llm`, so tests need no network.
+- LLM recommends, humans and rules decide (ADR 0002). `ai/client.py` routes each task over providers (Azure OpenAI, OpenAI, Anthropic, deterministic mock) with fallback, one schema-repair retry and tracing; `default_routes(env)` / `build_providers(env)` and each provider's `transport=` argument are injectable.
+- Payments live in the `payments` table (`kind` = premium | payout). Bank/PSP webhooks should call `POST /engine-rest/message` with `PaymentReceived` (key `policyNumber`) or `PayoutConfirmed` (key `claimNumber`).
+
+## Repository layout
+| Path | Purpose |
+|---|---|
+| `models/` | Generated BPMN 2.0 and DMN 1.3 files (open in bpmn.io / Camunda Modeler) |
+| `workers/` | External-task runner, ledger, handlers split by domain, `http_json.py` |
+| `ai/` | GenAI service: `client.py` routing, `providers.py`, `docai.py`, `agent.py`, `guardrails.py`, `retrieval.py`, `observe.py`, `governance.py`, `fairness.py`, `evals/` |
+| `insurance/` | Customers (ingest, resolve, profile), portfolio risk, actuarial maths, underwriting rating |
+| `records/` | Records classification, ROT, PII, review/audit, readiness report; run with `python -m records.run <library> <out> --apply-recommended` |
+| `tests/`, `ai/tests/`, `insurance/tests/`, `records/tests/` | pytest suites (unit, property, BDD, contract, integration) |
+| `features/` | Gherkin scenarios |
+| `docs/` | Capability map, ADRs, backlog/traceability, threat model, test strategy, literature review, AI governance inventory |
+| `scripts/`, `tools/` | Demos; model generator, traceability, AI inventory, mutation smoke test |
+| `video/` | Demo-video generation scripts |
+
+## Data sources
+No external data is downloaded. Customer and portfolio data are synthetic (`insurance/portfolio/synth.py`, `records/synth.py`); the mortality table is a Gompertz-Makeham illustration; `ai/data/policy_clauses.md` and `records/fileplan.json` are illustrative examples.
+
+## Configuration
+| Variable | Default | Purpose |
+|---|---|---|
+| `ENGINE_URL` | `http://localhost:8080/engine-rest` | Operaton REST API used by the runner |
+| `AI_SERVICE_URL` | `http://localhost:8090` | GenAI service used by the AI handlers |
+| `LEDGER_DB` | `ledger.db` | SQLite ledger path |
+| `DUE_IN`, `GRACE_IN`, `PAYOUT_SLA` | `P30D`, `P15D`, `P5D` | ISO-8601 timers (use `PT2M` for demos) |
+| `VALUATION_RATE` | `0.06` | Term-life premium valuation rate |
+| `AI_PROVIDER` | unset | `mock` forces the offline provider |
+| `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_DEPLOY_SMALL`, `AZURE_DEPLOY_LARGE`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | unset | Real model providers; set in your shell, never commit. The adapters are untested against live APIs |
+| `AI_PRICES` | empty | `model=in:out,...` USD per 1M tokens for cost tracking |
+| `RECORDS_FILE_PLAN`, `RECORDS_TARGET`, `RECORDS_PII_REGIONS`, `RECORDS_OUT` | see `records/` | Records pipeline configuration |
+
+## Testing
 ```bash
-.venv/bin/python -m pytest -q insurance ai/tests
-.venv/bin/python scripts/demo_customers_portfolio.py   # needs the compose stack running
+.venv/bin/python -m pytest -q          # 103 passed, 1 skipped (live-stack test skips without the engine)
+make ci                                # ruff, mypy, bandit, coverage gate (85%), evals, traceability
 ```
+Backlog and acceptance criteria live in `docs/product/BACKLOG.yaml` and are checked against tests (`make trace`). See `docs/process/ENGINEERING_PROCESS.md` and `docs/TEST_STRATEGY.md`.
 
-## Engineering system (SDLC, Agile, testing)
-Backlog and acceptance criteria live as code (`docs/product/BACKLOG.yaml`) and are checked against the tests (`make trace`). Layers: unit, property-based (hypothesis), BDD (Gherkin), contract (OpenAPI snapshot), integration (live stack), AI evals, mutation testing. `make ci` runs lint, types, security, tests with an 85% coverage gate, evals and traceability. See `docs/process/ENGINEERING_PROCESS.md`, `docs/TEST_STRATEGY.md`, `docs/security/THREAT_MODEL.md`, `docs/adr/`.
+## Limitations and known issues
+- Verified live (Operaton 2.1.5 via Podman, 2026-10-16): models deploy, DMN rules route correctly, policy issue, invoice, `PaymentReceived`, reconcile, and claim, triage, adjuster task, settle, `PayoutConfirmed` update the ledger. The timer/lapse and escalation branches have not been exercised.
+- The `operaton/operaton` image runs on embedded H2; the `DB_*` variables in `docker-compose.yml` did not switch it to Postgres, so engine state is not durable.
+- Single annual premium (no instalments), partial payment does not loop, the fraud score is a deterministic placeholder, there is no auth on the engine REST, documents/notifications are log stubs.
+- The mock provider is a keyword heuristic: evals against it prove plumbing and regression gating, not model quality.
+- `docker-compose.yml` contains throwaway local-development database passwords; change them for anything beyond a laptop.
+- Alternatives to Operaton: Flowable (BPMN/CMMN/DMN, Apache-2.0), Camunda 8 self-managed (Zeebe, source-available), Temporal (code-first, no diagrams).
 
-## Records migration (`records/`)
-AI classification against a file plan, ROT analysis, PII sensitivity labels, target-safe paths (profiles in `records/targets.py`, e.g. SharePoint Online), audited records-manager review and a readiness report: `python -m records.run <library> <out> --apply-recommended`, or the `records_migration` BPMN process. The file plan (`records/fileplan.json`, override with `RECORDS_FILE_PLAN`), target (`RECORDS_TARGET`) and PII region packs (`RECORDS_PII_REGIONS`) are configuration; shipped values are illustrative examples.
-
-## Literature and governance
-`docs/literature/INNOVATION_REVIEW.md` reviews recent regulation, reporting and analytics in insurance with evidence grades and maps findings to this repo. Derived features: AI use-case inventory and tiering (`ai/governance.py`, `docs/governance/`), fairness metrics (`ai/fairness.py`), proxy-free pricing (`insurance/actuarial/fair_pricing.py`).
+## Licence
+No licence file yet; all rights reserved.

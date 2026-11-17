@@ -24,7 +24,7 @@ def validate_application(con, v):
             errs.append(f"missing {f}")
     if v.get("product") not in BASE_RATE:
         errs.append(f"unknown product {v.get('product')!r}")
-    if isinstance(v.get("sumInsured"), int) and v["sumInsured"] <= 0:
+    if isinstance(v.get("sumInsured"), (int, float)) and not isinstance(v["sumInsured"], bool) and v["sumInsured"] <= 0:
         errs.append("sumInsured must be positive")
     return {"valid": not errs, "validationErrors": "; ".join(errs)}
 
@@ -43,9 +43,13 @@ def calculate_premium_legacy(con, v):
 def issue_policy(con, v):
     number = next_number(con, "POL", "policies", "policy_number")
     start = dt.date.today()
+    try:
+        end = start.replace(year=start.year + 1)
+    except ValueError:                                  # issued on 29 Feb: cover runs to 28 Feb next year
+        end = start.replace(year=start.year + 1, day=28)
     con.execute("INSERT INTO policies VALUES(?,?,?,?,?,?,?,?)",
                 (number, v["applicant"], v["product"], v["sumInsured"], v["premium"], "pending_payment",
-                 start.isoformat(), start.replace(year=start.year + 1).isoformat()))
+                 start.isoformat(), end.isoformat()))
     con.commit()
     log(con, number, "policy issued")
     return {"policyNumber": number, "dueIn": DUE_IN, "graceIn": GRACE_IN}
@@ -123,7 +127,8 @@ def fraud_score(con, v):
 
 
 def settle_claim(con, v):
-    amount = int(v.get("approvedAmount") or v["claimAmount"])
+    approved = v.get("approvedAmount")
+    amount = int(v["claimAmount"] if approved in (None, "") else approved)   # an explicit 0 is a decision, not 'missing'
     con.execute("UPDATE claims SET status='approved', approved_amount=? WHERE claim_number=?", (amount, v["claimNumber"]))
     con.execute("INSERT INTO payments(kind,ref,amount,status,updated_at) VALUES('payout',?,?,'pending',strftime('%s','now'))",
                 (v["claimNumber"], amount))

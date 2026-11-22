@@ -126,6 +126,17 @@ def test_order_keeps_configured_order_with_thin_history():
     assert c.order("t") == [a, b]
 
 
+def test_order_needs_five_calls_on_every_candidate_before_reranking():
+    a, b = C.Route("p", "a", quality=0.9), C.Route("p", "b", quality=0.9)
+    st = TraceStore(":memory:")
+    seed(st, "a", 5, latency=29000.0)                       # slow, enough history
+    seed(st, "b", 4, latency=10.0)                          # fast but only 4 calls: ordering must stay as configured
+    c = C.LLMClient({"p": MockProvider()}, {"t": [a, b]}, st)
+    assert c.order("t") == [a, b]
+    seed(st, "b", 1, latency=10.0)                          # now 5 calls: fast model wins
+    assert c.order("t") == [b, a]
+
+
 def test_order_ranks_by_quality_latency_and_errors():
     st = TraceStore(":memory:")
     slow, fast = C.Route("p", "slow", quality=0.9), C.Route("p", "fast", quality=0.9)

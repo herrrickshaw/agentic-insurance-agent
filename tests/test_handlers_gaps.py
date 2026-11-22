@@ -132,6 +132,14 @@ def test_reconcile_payment_boundaries(con):
     assert con.execute("SELECT status FROM policies").fetchone()[0] == "pending_payment"
 
 
+def test_reconcile_payment_tolerance_is_one_millionth(con):
+    v = issue(con)
+    h.create_invoice(con, {**v, "premium": 1e-6})
+    assert h.reconcile_payment(con, {**v, "amountPaid": 0})["premiumPaid"] is True        # 0 + 1e-6 >= 1e-6
+    con.execute("UPDATE payments SET amount=?", (2e-6,))
+    assert h.reconcile_payment(con, {**v, "amountPaid": 0})["premiumPaid"] is False
+
+
 def test_lapse_policy_marks_policy_and_premium_overdue(con):
     v = issue(con)
     h.create_invoice(con, v)
@@ -306,8 +314,11 @@ def test_ai_triage_request_body_and_output_truncation(con, monkeypatch):
     monkeypatch.setattr(h, "_ai", lambda p, b: seen.append((p, b)) or {"route": "siu", "confidence": 0.9, "rationale": "r" * 700, "trace_id": "T"})
     out = h.ai_triage(con, {"claimNumber": "C1", "policyNumber": "P1", "claimAmount": "250000"})
     assert seen == [("/v1/claims/triage", {"claim_number": "C1", "policy_number": "P1", "claim_amount": 250000, "description": ""})]
+    seen.clear()
+    h.ai_triage(con, {"claimNumber": "C1", "policyNumber": "P1", "claimAmount": 5, "description": "rear-ended at a light"})
+    assert seen[0][1]["description"] == "rear-ended at a light"
     assert out["aiRoute"] == "siu" and len(out["aiRationale"]) == 500 and out["aiTraceId"] == "T"
-    assert events(con) == [("C1", "AI triage recommends siu (conf 0.9, trace T)")]
+    assert events(con)[0] == ("C1", "AI triage recommends siu (conf 0.9, trace T)")
 
 
 # ---- misc handlers -----------------------------------------------------------------------------------

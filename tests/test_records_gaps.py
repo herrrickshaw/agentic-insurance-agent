@@ -187,6 +187,9 @@ def test_sanitise_replaces_illegal_chars_renames_reserved_and_caps_length():
     assert pipeline.sanitise("a/CON.txt", "generic_fs") == "a/_CON.txt"
     assert pipeline.sanitise("a/_vti_x/f.txt", sp) == "a/vti-x/f.txt"
     assert pipeline.sanitise("a/???/f.txt", "generic_fs") == "a/---/f.txt"
+    exact = "d/" + "n" * 393 + ".docx"                           # exactly 400 characters: within the limit, untouched
+    assert len(exact) == 400 and pipeline.sanitise(exact, sp) == exact
+    assert len(pipeline.sanitise("d/" + "n" * 394 + ".docx", sp)) <= 400
     long = "d/" + "n" * 450 + ".docx"
     out = pipeline.sanitise(long, sp)
     assert len(out) <= 400 and out.startswith("d/") and out.endswith(".docx")
@@ -292,6 +295,8 @@ def test_preflight_gates():
     assert "missing retention or sensitivity label" in pipeline.preflight([{**ok, "sensitivity": ""}])[0]
     dup = pipeline.preflight([ok, {**ok, "source_path": "other", "target_path": "A/B.txt"}])
     assert dup == ["duplicate target path A/B.txt (from a/b.txt and other)"]
+    dup2 = pipeline.preflight([{**ok, "target_path": "A/B.txt"}, {**ok, "source_path": "other", "target_path": "a/b.txt"}])
+    assert dup2 == ["duplicate target path a/b.txt (from a/b.txt and other)"]       # first writer's source path is reported
     bad = pipeline.preflight([{**ok, "target_path": "a/b:c.txt"}])
     assert len(bad) == 1 and bad[0].startswith("a/b:c.txt: ") and "illegal character in 'b:c.txt'" in bad[0]
     assert pipeline.preflight([{**ok, "target_path": "forms/x.txt"}], "sharepoint_online")[0].startswith("forms/x.txt:")
@@ -348,6 +353,14 @@ def test_readiness_truncates_preflight_list_to_ten(tmp_path):
     assert text.count("missing retention or sensitivity label") == 10 and "FAIL (15 errors)" in text
 
 
+def test_readiness_lists_the_six_most_common_reasons(tmp_path):
+    log = au.AuditLog(tmp_path / "a.jsonl")
+    rows = [good_row(reasons="; ".join(f"reason{i}" for i in range(j + 1)), source_path=f"f{j}", target_path=f"f{j}") for j in range(7)]
+    text, _ = report.readiness(rows, log)
+    section = text.split("## Most common reasons\n")[1].splitlines()
+    assert section == ["- reason0: 7", "- reason1: 6", "- reason2: 5", "- reason3: 4", "- reason4: 3", "- reason5: 2"]
+
+
 def test_readiness_only_counts_migrating_rows_in_class_and_sensitivity_tables(tmp_path):
     log = au.AuditLog(tmp_path / "a.jsonl")
     text, _ = report.readiness([good_row(), good_row(status="exclude", record_class="contract_agreement", sensitivity="Confidential",
@@ -388,6 +401,11 @@ def test_cli_apply_recommended_records_decisions_under_records_manager(tmp_path,
     assert "applied 1 recommended decisions" in capsys.readouterr().out
     last = au.AuditLog(out / "audit.jsonl").entries()[-1]
     assert last["actor"] == "records-manager" and au.AuditLog(out / "audit.jsonl").verify() == (True, None)
+
+
+def test_eval_thresholds_are_the_documented_gate_values():
+    assert evals.THRESH == {"class_accuracy": 0.95, "rot_precision": 0.95, "rot_recall": 0.9, "path_recall": 1.0, "pii_recall": 0.95,
+                            "review_recall": 0.9}
 
 
 def test_eval_score_perfect_and_degraded():

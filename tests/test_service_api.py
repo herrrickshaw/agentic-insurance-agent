@@ -59,6 +59,19 @@ def test_summarize_endpoint_returns_model_and_honours_audience(service):
     assert b["model"] == "mock-heuristic-1" and set(b) == {"summary", "key_points", "open_questions", "model"}
 
 
+def test_summarize_passes_the_audience_through_and_defaults_to_claims_adjuster(service, monkeypatch):
+    seen = []
+
+    async def fake(llm, texts, audience="claims adjuster"):
+        seen.append((texts, audience))
+        return service.docai.Summary(summary="s"), {"model": "m"}
+    monkeypatch.setattr(service.docai, "summarize", fake)
+    c = TestClient(service.app)
+    c.post("/v1/documents/summarize", json={"documents": [{"text": "a"}], "audience": "auditor"})
+    c.post("/v1/documents/summarize", json={"documents": [{"text": "a"}, {"text": "b"}]})
+    assert seen == [(["a"], "auditor"), (["a", "b"], "claims adjuster")]
+
+
 def test_triage_endpoint_reads_the_ledger_and_returns_recommendation(service, tmp_path):
     seed_ledger(tmp_path / "ledger.db")
     payload = {"claim_number": "CLM-2026-000001", "policy_number": "POL-2026-000001", "claim_amount": 8000}

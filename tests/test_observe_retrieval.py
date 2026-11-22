@@ -204,6 +204,18 @@ def test_hash_embed_is_unit_norm_deterministic_and_case_insensitive():
     assert retrieval.hash_embed("!!! ???") == [0.0] * retrieval.DIM    # no alphanumerics
 
 
+def test_hash_embed_uses_signed_feature_hashing():
+    v = retrieval.hash_embed("alpha beta gamma delta epsilon zeta eta theta")
+    assert any(x < 0 for x in v) and any(x > 0 for x in v)
+    assert retrieval.hash_embed("a a a")[next(i for i, x in enumerate(retrieval.hash_embed("a")) if x)] in (1.0, -1.0)   # repeats add up, then normalise
+
+
+def test_load_clauses_subheadings_stay_in_the_clause_body(tmp_path):
+    f = tmp_path / "c.md"
+    f.write_text("## C1 First\nbody\n### Sub heading\nmore\n## C2 Second\nx\n", encoding="utf-8")
+    assert retrieval.load_clauses(f) == [("C1", "C1 First\nbody\n### Sub heading\nmore"), ("C2", "C2 Second\nx")]
+
+
 def test_hash_embed_ignores_punctuation_tokenisation():
     assert retrieval.hash_embed("claim-form, amount.") == retrieval.hash_embed("claim form amount")
 

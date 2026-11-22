@@ -66,6 +66,8 @@ def test_dob_unparseable_and_implausible_ages():
     assert rec(dob=today.isoformat()).dob == today                                   # age 0 allowed
     assert rec(dob=(today - timedelta(days=int(100 * 365.25) - 5)).isoformat()).dob      # just under 100
     assert "implausible age" in errs(dob=(today - timedelta(days=int(100 * 365.25) + 40)).isoformat())[0][1]
+    assert rec(dob=(today - timedelta(days=36525)).isoformat()).dob == today - timedelta(days=36525)      # exactly 100.0 years: allowed
+    assert "implausible age" in errs(dob=(today - timedelta(days=36526)).isoformat())[0][1]
 
 
 @pytest.mark.parametrize("raw,out", [("m", "M"), (" Male ", "M"), ("FEMALE", "F"), ("f", "F"), ("x", ""), (None, ""), ("", "")])
@@ -340,6 +342,33 @@ def test_resolve_batch_keeps_earlier_golden_ids_stable_on_rerun(con):
     assert before < after and len(after) == 2
 
 
+def test_resolve_thresholds_are_applied_with_the_right_inclusivity(con, monkeypatch):
+    load(con, "B1", phone="+919000000001")
+    load(con, "B2", phone="+919000000001", full_name="Asha Rao")
+    for s, auto, queued in ((0.92, 1, 0), (0.9199, 0, 1), (0.75, 0, 1), (0.7499, 0, 0)):
+        con.execute("DELETE FROM match_queue")
+        con.execute("UPDATE customers_raw SET golden_id=NULL")
+        con.execute("DELETE FROM customers")
+        monkeypatch.setattr(resolve, "score", lambda a, b, s=s: s)
+        out = resolve.resolve_batch(con, "B2")
+        assert (out["auto_merged"], out["queued_for_review"]) == (auto, queued), s
+
+
+def test_pair_sharing_several_blocks_is_queued_once(con):
+    load(con, "B1", phone="+919000000001", email="same@x.com")
+    load(con, "B2", phone="+919000000002", email="same@x.com")             # shares the email block AND the dob/initial block
+    out = resolve.resolve_batch(con, "B2")
+    assert out["queued_for_review"] == 1 and con.execute("SELECT COUNT(*) FROM match_queue").fetchone()[0] == 1
+
+
+def test_golden_record_takes_the_latest_record_per_field(con):
+    load(con, "B1", state="KA", occupation="clerk")
+    load(con, "B2", state="MH", occupation="")
+    resolve.resolve_batch(con, "B2")
+    g = con.execute("SELECT state, occupation FROM customers").fetchone()
+    assert (g["state"], g["occupation"]) == ("MH", "clerk")
+
+
 def test_resolve_batch_does_not_rescore_pairs_already_linked_by_a_golden_id(con):
     load(con, "B1", golden_id="GOLD", phone="+919876543210")
     load(con, "B2", golden_id="GOLD", phone="+919876543211")            # would score 0.75 (review) if it were scored again
@@ -397,7 +426,7 @@ def test_value_tier_boundaries(si, n, prem, tier):
 
 @pytest.mark.parametrize("claims,ratio,late,age,tier", [
     (0, 0, 0, 59, "low"), (0, 0, 0, 60, "low"), (1, 0.61, 0, 30, "medium"), (1, 0.6, 0, 30, "low"), (3, 0, 0, 30, "medium"),
-    (2, 0.9, 0, 30, "medium"), (2, 0.91, 0, 30, "medium"), (3, 0.91, 0, 30, "high"), (0, 0, 3, 60, "medium"), (1, 0.7, 1, 60, "high"),
+    (2, 0.9, 0, 30, "medium"), (2, 0.91, 0, 30, "medium"), (3, 0.91, 0, 30, "high"), (0, 0, 3, 60, "medium"), (1, 0.7, 1, 60, "high"), (3, 0.9, 0, 30, "medium"), (3, 0.9001, 0, 30, "high"),
     (0, 0.95, 1, 30, "medium"), (0, 0.95, 3, 30, "high")])
 def test_risk_tier_points(claims, ratio, late, age, tier):
     assert profile.risk_tier(claims, ratio, late, age) == tier
@@ -521,6 +550,18 @@ def test_pure_premium_is_product_of_frequency_and_severity():
     assert glm.pure_premium(np.array([1.0, 0.0]), np.array([-2.0, 0.5]), np.array([8.0, 0.0])) == pytest.approx(np.exp(-2.0 + 8.0))
 
 
+def test_severity_fit_equals_fit_on_only_the_rows_with_claims():
+    rng = np.random.default_rng(5)
+    n = 200
+    X = np.column_stack([np.ones(n), rng.integers(0, 2, n)])
+    counts = rng.integers(0, 3, n)
+    sev = np.where(counts > 0, np.exp(7 + 0.3 * X[:, 1]) * rng.gamma(10, 0.1, n), 0.0)
+    b1, s1 = glm.fit_severity(X, sev, counts)
+    k = counts > 0
+    b2, s2 = glm.fit_severity(X[k], sev[k], counts[k])
+    assert np.allclose(b1, b2) and np.allclose(s1, s2)             # zero-claim rows must not enter the dispersion degrees of freedom
+
+
 def test_poisson_deviance():
     assert glm.poisson_deviance([1, 2, 3], [1, 2, 3]) == pytest.approx(0.0)
     assert glm.poisson_deviance([0], [2.0]) == pytest.approx(4.0)                         # 2*(0 - (0-2)) with the y=0 term dropped
@@ -607,6 +648,31 @@ def test_snapshot_metrics_for_mixed_book_and_persistence(con):
     assert saved["label"] == "t" and json.loads(saved["metrics"])["policies"] == 5
     plain = pr.snapshot(con, 50_000_000, n_sims=500)
     assert isinstance(plain, dict) and plain["policies"] == 5
+
+
+def test_top10_share_counts_exactly_ten_customers(con):
+    for i in range(11):
+        add_customer(con, f"G{i}")
+        add_policy(con, f"P{i}", f"G{i}", "health", 100)
+    m = pr.snapshot(con, 1e7, n_sims=200)
+    assert m["customers"] == 11 and m["top10_customer_share_pct"] == round(1000 / 1100 * 100, 2)
+
+
+def test_snapshot_defaults_are_50k_sims_and_seed_3(con):
+    add_customer(con, "G")
+    add_policy(con, "H", "G", "health", 1_000_000, 5_000)
+    default = pr.snapshot(con, 1e7, return_samples=True)
+    explicit = pr.snapshot(con, 1e7, n_sims=50_000, seed=3, return_samples=True)
+    assert default[1].shape == (50_000,) and default[0]["var995"] == explicit[0]["var995"]
+
+
+def test_motor_age_loading_applies_below_25_in_snapshot():
+    def var(age):
+        c = db.connect(":memory:")
+        add_customer(c, "G", dob=f"{date.today().year - age}-01-01")
+        add_policy(c, "M", "G", "motor", 800_000, 25_000)
+        return pr.snapshot(c, 1e7, n_sims=3000)["var995"]
+    assert var(24) > var(25) and var(25) == var(26)
 
 
 def test_snapshot_non_life_only_and_life_only_skip_the_other_branch(con):

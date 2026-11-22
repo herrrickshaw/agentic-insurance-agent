@@ -16,7 +16,7 @@ markers = [
 
 [tool.coverage.run]
 source = ["ai", "insurance", "records", "workers"]
-omit = ["*/tests/*", "ai/service.py", "records/run.py"]
+omit = ["*/tests/*"]
 
 [tool.coverage.report]
 fail_under = 85

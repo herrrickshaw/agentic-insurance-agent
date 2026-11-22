@@ -397,3 +397,11 @@ def test_log_stamps_time_and_commits(tmp_path, monkeypatch):
     ledger.log(c, "R", "E")
     other = sqlite3.connect(p)                                       # a second connection sees it only if committed
     assert other.execute("SELECT ts, ref, event FROM events").fetchall() == [(42.5, "R", "E")]
+
+
+def test_settle_claim_blank_assessor_amount_means_not_provided(con):
+    v = active_policy(con)
+    c = h.verify_coverage(con, dict(policyNumber=v["policyNumber"], claimAmount=40))
+    assert h.settle_claim(con, {**c, "claimAmount": 40, "approvedAmount": ""})["approvedAmount"] == 40
+    assert h.settle_claim(con, {**c, "claimAmount": 40, "approvedAmount": None})["approvedAmount"] == 40
+    assert h.settle_claim(con, {**c, "claimAmount": 40, "approvedAmount": 25})["approvedAmount"] == 25

@@ -398,7 +398,7 @@ def test_eval_score_perfect_and_degraded():
             dict(source_path="d", record_class="", status="migrate", reasons="", target_path="d", sensitivity="Highly Confidential"),
             dict(source_path="e", record_class="", status="review", reasons="", target_path="e", sensitivity="")]
     s = evals.score(rows, truth)
-    assert s == {k: 1.0 for k in evals.THRESH}
+    assert s == dict.fromkeys(evals.THRESH, 1.0)
     rows[0]["record_class"] = "other"
     rows[1]["status"] = "migrate"
     rows[2]["target_path"] = "c"

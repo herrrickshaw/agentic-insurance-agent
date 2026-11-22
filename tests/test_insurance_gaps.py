@@ -299,8 +299,8 @@ def load(con, batch, **kw):
 
 
 def test_resolve_batch_auto_merges_and_builds_golden_with_survivorship(con):
-    a = load(con, "B1", annual_income=100.0, channel="app", email="old@x.com", smoker=0)
-    b = load(con, "B2", annual_income=900.0, channel="call", email="", smoker=1, state="")
+    load(con, "B1", annual_income=100.0, channel="app", email="old@x.com", smoker=0)
+    load(con, "B2", annual_income=900.0, channel="call", email="", smoker=1, state="")
     out = resolve.resolve_batch(con, "B2")
     assert out == {"auto_merged": 1, "queued_for_review": 0, "golden_customers": 1}
     g = dict(con.execute("SELECT * FROM customers").fetchone())
@@ -379,7 +379,7 @@ def test_completeness_counts_non_empty_non_zero_fields():
     full = dict(full_name="a", dob="d", gender="F", phone="p", email="e", pan_last4="1", aadhaar_last4="2", pincode="x", state="s", occupation="o", annual_income=1.0)
     assert profile.completeness(full) == 1.0
     assert profile.completeness({**full, "email": "", "annual_income": 0, "state": None}) == round(8 / 11, 3)
-    assert profile.completeness({k: None for k in full}) == 0.0
+    assert profile.completeness(dict.fromkeys(full)) == 0.0
 
 
 @pytest.mark.parametrize("valid,pan,level", [(1, "1234", "full_docs"), (1, None, "partial_docs"), (0, "1234", "partial_docs"),
